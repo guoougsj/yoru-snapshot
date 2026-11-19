@@ -68,9 +68,9 @@ APK 的播放与缓存策略：
 - 官方音轨加载失败时自动回退到本地 `ambient-*.wav`，并在详情页提示“完整音轨加载失败，已切换本地试听”。
 - 首次出现成人作品时显示 18+ 确认；不提供“仅全年龄”过滤模式，符合“不需要过滤”的要求。
 
-### 网络与数据源（1.2.3 → 1.2.6）
+### 网络、数据源与分页（1.2.3 → 1.2.8）
 
-2026 年 8 月起，asmr.one 的官方 API 域名在部分地区被阻断；公共 CORS 中继又经常返回 429/500。1.2.3 把同步改成三层，1.2.4 把线路做成**一键预设**，1.2.5 补上完全离线的**内置快照**，1.2.6 把静态快照默认指向本项目的 GitHub Actions 快照：
+2026 年 8 月起，asmr.one 的官方 API 域名在部分地区被阻断；公共 CORS 中继又经常返回 429/500。1.2.3 把同步改成三层，1.2.4 把线路做成**一键预设**，1.2.5 补上完全离线的**内置快照**，1.2.6 把静态快照默认指向本项目的 GitHub Actions 快照，1.2.8 扩到 **500 件作品，每页 20 条分页**：
 
 - **自动选择**：内置中继 + 直连 + 公共中继（默认）
 - **内置中继**：固定使用 `asmr.furina.in`
@@ -79,6 +79,7 @@ APK 的播放与缓存策略：
 - **自建中继**：Cloudflare Worker / Node；点击时会预填可用的内置地址，可直接保存或替换
 - **静态快照**：默认 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`（可替换）
 - **内置快照**：APK 自带 500 件作品，完全离线，不发起网络请求
+- **作品分页**：500 件作品按每页 20 条展示，支持页码、上一页/下一页
 
 点击预设即保存并触发同步，无需再点“保存”；静态快照已预置本项目地址，点击即用。具体三层能力：
 
@@ -218,8 +219,8 @@ src/             React 界面、组件与样式
 - **新中继链路实测**：`furina-relay` 分 25 页抓取 500 件作品耗时 14.9 秒，每页 20 件；`RJ01683351` 的 5 段音轨在约 1 秒内返回，5/5 带官方 VTT 字幕。`/api/works` 返回 500 件作品、18 个原站标签、含成人内容。
 - **服务端快路径实测**：重启服务后 `POST /api/sync` 21.18 秒返回 500 件；`GET /api/works` 返回 500 件、18 个标签；`GET /api/tracks/1683351` 命中缓存 11ms 返回 5 段音轨、5 个字幕 URL，传输标记为 `furina-relay`。
 - **一键预设实测**：面板列出 7 个预设；点击“内置中继 / 仅直连 / 公共中继 / 自动选择 / 内置快照 / 静态快照”会立即写入 `yoru.data-source-v2` 并标记当前项；点击“自建中继”会预填内置地址。重新打开面板后选择保持，控制台无错误。
-- **GitHub Actions 已跑通**：`guoougsj/yoru-snapshot` 的 `Sync asmr.one snapshot` 运行 `44507548344` 成功，并提交 `b391dfc`；raw 快照返回 `200`、200 件作品、抓取时间 `2026-11-19T10:38:42Z`。jsDelivr 分支地址有缓存，测试时仍返回旧的 24 件；commit 固定地址 `@b391dfc` 已返回 200 件。
-- **静态快照已预置**：点击“静态快照”会自动填入并保存 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`，无需手动粘贴；Node 模拟中 828ms 返回 200 件作品，状态为 `curated-snapshot` / `snapshot`。
+- **GitHub Actions 已跑通**：`guoougsj/yoru-snapshot` 的 `Sync asmr.one snapshot` 运行 `44508706141` 成功，并提交 `8d1a5e7`；raw 快照返回 `200`、500 件作品、抓取时间 `2026-11-19T10:46:22Z`。jsDelivr 分支地址有缓存，commit 固定地址 `@8d1a5e7` 已验证为 500 件。
+- **静态快照已预置**：点击“静态快照”会自动填入并保存 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`，无需手动粘贴；Node 模拟中 341ms 返回 500 件作品，状态为 `curated-snapshot` / `snapshot`。
 - **500 件作品实测**：`furina-relay` 分 25 页抓取 500 件作品耗时 14.9 秒，18 个原站标签；音轨接口约 1 秒返回 5 段、5 个字幕。Web 每页 20 张卡片，共 25 页；第 1 页显示 20 张，第 25 页显示 20 张且“下一页”禁用。
 - **内置种子已升级**：`data/live-seed.json` 500 件作品、500 个唯一 ID、18 个标签，文件 535,354 bytes；APK 也内置了构建时抓取的 500 件快照。
 - **预设路由实测**：Node 模拟中 `auto` 走 `furina-relay` 返回 500 件（14.9 秒）；`furina` 固定走 `furina-relay`；`bundled` 在 0ms 内返回 500 件内置快照，状态为 `curated-snapshot` / `bundled`；`custom` 走本地模拟 Worker 返回 24 件；`direct` 在无 VPN 网络下 6 秒内明确失败，不会偷偷回退到内置中继。

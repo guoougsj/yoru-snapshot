@@ -9,9 +9,9 @@ https://github.com/guoougsj/yoru-snapshot
 - 仓库：公开
 - 默认分支：`main`
 - 工作流：`Sync asmr.one snapshot`
-- 最近成功运行：`44507548344`（2026-11-19）
-- 快照提交：`b391dfc chore: sync asmr.one snapshot`
-- 当前快照：200 件作品
+- 最近成功运行：`44508706141`（2026-11-19）
+- 快照提交：`8d1a5e7 chore: sync asmr.one snapshot`
+- 当前快照：500 件作品
 
 ## 现成快照地址
 
@@ -30,7 +30,7 @@ https://cdn.jsdelivr.net/gh/guoougsj/yoru-snapshot@main/data/live-seed.json
 jsDelivr 的 `@main` 地址有缓存，刚更新后可能仍返回上一版。需要立即拿到最新版时，用 commit 固定地址：
 
 ```text
-https://cdn.jsdelivr.net/gh/guoougsj/yoru-snapshot@b391dfc/data/live-seed.json
+https://cdn.jsdelivr.net/gh/guoougsj/yoru-snapshot@8d1a5e7/data/live-seed.json
 ```
 
 App 的 **静态快照** 预设已经默认填入 raw 地址，直接点击即可，不需要手动粘贴。想换成 jsDelivr 时，在静态快照输入框替换后保存。
@@ -44,9 +44,9 @@ npm.cmd run relay:check -- https://raw.githubusercontent.com/guoougsj/yoru-snaps
 通过时：
 
 ```text
-✓ 快照可用  HTTP 200  1390ms
-  作品 200 件，来源 live
-  抓取时间 2026-11-19T10:38:42.198Z
+✓ 快照可用  HTTP 200  645ms
+  作品 500 件，来源 live
+  抓取时间 2026-11-19T10:46:22.529Z
 ```
 
 ## 自动更新
