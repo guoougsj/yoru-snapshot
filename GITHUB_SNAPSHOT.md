@@ -10,34 +10,40 @@
 
 ## 2. 上传项目
 
-### 方式 A：GitHub Desktop
+本地已经初始化 Git 仓库并完成首次提交：
+
+```text
+commit 56931f9  Initial YORU project with GitHub snapshot workflow
+```
+
+所以不需要再执行 `git init` / `git add` / `git commit`。
+
+### 方式 A：GitHub Desktop（最简单）
 
 1. 打开 GitHub Desktop → **File** → **Add local repository**
 2. 选择 `E:\项目\localproject`
-3. 如果提示不是 Git 仓库，点 **create a repository**
-4. 提交后点 **Publish repository**
-5. 取消勾选 “Keep this code private”（推荐公开）
+3. 点 **Publish repository**
+4. 取消勾选 “Keep this code private”（推荐公开）
 
 ### 方式 B：命令行
 
+先在 GitHub 网页新建空仓库，然后：
+
 ```powershell
 cd "E:\项目\localproject"
-git init
-git add .
-git commit -m "Initial YORU project"
-git branch -M main
 git remote add origin https://github.com/<你的用户名>/<仓库名>.git
 git push -u origin main
 ```
 
-如果 Git 提示没有身份：
+如果之后想改成自己的提交身份：
 
 ```powershell
 git config user.name "你的名字"
 git config user.email "你的邮箱"
+git commit --amend --reset-author --no-edit
 ```
 
-项目 `.gitignore` 已排除 `node_modules/`、`dist/`、`release/`、Android 构建输出、`server/cache/` 和签名文件，不会把 APK 密钥传到 GitHub。
+项目 `.gitignore` 已排除 `node_modules/`、`dist/`、`release/`、Android 构建输出、`server/cache/` 和签名文件；当前提交共 150 个文件，没有把 APK 密钥传到 GitHub。
 
 ## 3. 启用 Actions 写权限
 
