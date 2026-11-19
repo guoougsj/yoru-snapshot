@@ -560,6 +560,10 @@
   background: rgba(231, 185, 135, 0.035);
 }
 
+.detail-source-alt {
+  margin-top: 8px;
+}
+
 .detail-source > span {
   display: flex;
   flex-direction: column;

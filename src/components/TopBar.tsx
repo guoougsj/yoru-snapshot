@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Bell,
+  ExternalLink,
   Heart,
   ListMusic,
   Maximize2,
@@ -24,6 +25,7 @@ import {
   type DataSourcePreset,
 } from "../lib/netSettings";
 import { testCustomSource } from "../lib/nativeSource";
+import { ASMR_DAILY } from "../lib/resources";
 
 interface TopBarProps {
   query: string;
@@ -274,7 +276,7 @@ export function TopBar({
               <span className="profile-avatar">夜</span>
               <div className="profile-identity">
                 <strong>夜行听众</strong>
-                <small>YORU · 夜音 v1.2.9</small>
+                <small>YORU · 夜音 v1.3.0</small>
               </div>
               <button
                 className="popover-close"
@@ -375,6 +377,17 @@ export function TopBar({
               <button onClick={() => runAndClose(onExpand)}>
                 <Maximize2 size={15} />
                 播放详情与字幕
+              </button>
+              <button
+                onClick={() =>
+                  runAndClose(() =>
+                    window.open(ASMR_DAILY.url, "_blank", "noopener,noreferrer"),
+                  )
+                }
+              >
+                <ExternalLink size={15} />
+                {ASMR_DAILY.name} 资源站
+                <small>外部</small>
               </button>
               <button onClick={onSync} disabled={syncing}>
                 <RefreshCw size={15} />

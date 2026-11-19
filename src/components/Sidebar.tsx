@@ -2,6 +2,7 @@ import {
   Clock3,
   Compass,
   Disc3,
+  ExternalLink,
   Headphones,
   Heart,
   Home,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import type { Playlist, SourceInfo } from "../types";
 import { formatSyncDate } from "../lib/format";
+import { EXTERNAL_RESOURCES } from "../lib/resources";
 
 interface SidebarProps {
   playlists: Playlist[];
@@ -99,6 +101,29 @@ export function Sidebar({
         ))}
       </div>
 
+      <div className="sidebar-section sidebar-resources">
+        <p className="sidebar-label">RESOURCES</p>
+        {EXTERNAL_RESOURCES.map((resource) => (
+          <a
+            className="resource-link"
+            key={resource.id}
+            href={resource.url}
+            target="_blank"
+            rel="noreferrer"
+            title={`打开 ${resource.name}`}
+          >
+            <span className="resource-icon">
+              <ExternalLink size={14} strokeWidth={1.7} />
+            </span>
+            <span className="resource-copy">
+              <strong>{resource.name}</strong>
+              <small>{resource.description}</small>
+            </span>
+            <ExternalLink className="resource-arrow" size={12} strokeWidth={1.7} />
+          </a>
+        ))}
+      </div>
+
       <div className="sidebar-spacer" />
 
       <div className={`source-card ${source.mode === "live" ? "is-live" : ""}`}>
@@ -132,7 +157,7 @@ export function Sidebar({
           <SlidersHorizontal size={12} />
           HIGH · 48kHz
         </span>
-        <span className="ver">v1.2.9</span>
+        <span className="ver">v1.3.0</span>
       </div>
     </aside>
   );

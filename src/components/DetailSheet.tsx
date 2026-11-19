@@ -18,6 +18,7 @@ import {
 import type { CachedTrack } from "../lib/audioCache";
 import { cacheKey } from "../lib/audioCache";
 import { formatLongDuration, formatShortDuration } from "../lib/format";
+import { ASMR_DAILY, resourceWorkUrl } from "../lib/resources";
 import type { Track, Work } from "../types";
 import { CoverArt } from "./CoverArt";
 
@@ -301,6 +302,19 @@ export function DetailSheet({
                 <span>
                   <small>原始页面</small>
                   在 asmr.one 查看作品
+                </span>
+                <ExternalLink size={15} />
+              </a>
+
+              <a
+                className="detail-source detail-source-alt"
+                href={resourceWorkUrl(ASMR_DAILY, work.id)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>
+                  <small>外部资源站 · 需登录</small>
+                  在 ASMR Daily 查看作品
                 </span>
                 <ExternalLink size={15} />
               </a>
