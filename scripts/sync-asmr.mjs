@@ -23,7 +23,10 @@ try {
   console.log(
     `✓ 已缓存 ${library.works.length} 个作品、${library.tags?.length ?? 0} 个原站标签（${library.source.api}）`,
   );
-  for (const work of library.works) console.log(`  ${work.id}  ${work.title}`);
+  for (const work of library.works.slice(0, 20)) console.log(`  ${work.id}  ${work.title}`);
+  if (library.works.length > 20) {
+    console.log(`  … 另有 ${library.works.length - 20} 件`);
+  }
 } catch (error) {
   console.error(`✗ 同步失败：${error.message}`);
   console.error("  应用会继续使用 data/works.json 中的策展快照。");

@@ -11,7 +11,7 @@ https://github.com/guoougsj/yoru-snapshot
 - 工作流：`Sync asmr.one snapshot`
 - 最近成功运行：`44504695412`（2026-11-19）
 - 快照提交：`b22b97b chore: sync asmr.one snapshot`
-- 当前快照：24 件作品
+- 当前快照：200 件作品（工作流下次运行后）
 
 ## 现成快照地址
 
@@ -39,7 +39,7 @@ npm.cmd run relay:check -- https://cdn.jsdelivr.net/gh/guoougsj/yoru-snapshot@ma
 
 ```text
 ✓ 快照可用  HTTP 200  1203ms
-  作品 24 件，来源 live
+  作品 200 件，来源 live
   抓取时间 2026-11-19T10:20:19.572Z
 ```
 

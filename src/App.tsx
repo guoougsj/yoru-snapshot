@@ -139,6 +139,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState("all");
   const [view, setView] = useState<View>("home");
+  const [worksLimit, setWorksLimit] = useState(48);
   const [favorites, setFavorites] = useState<string[]>(readFavorites);
   const [currentId, setCurrentId] = useState(() => {
     const saved = savedPlayback.currentId;
@@ -657,6 +658,15 @@ function App() {
         .includes(needle);
     });
   }, [library.works, query, activeTag, view, favoritesSet]);
+
+  const renderedWorks = useMemo(
+    () => visibleWorks.slice(0, worksLimit),
+    [visibleWorks, worksLimit],
+  );
+
+  useEffect(() => {
+    setWorksLimit(48);
+  }, [query, activeTag, view, library.works]);
 
   const queueWorks = useMemo(
     () =>
@@ -1411,21 +1421,34 @@ function App() {
             </div>
 
             {visibleWorks.length > 0 ? (
-              <div className="works-grid">
-                {visibleWorks.map((work, index) => (
-                  <WorkCard
-                    key={work.id}
-                    work={work}
-                    index={index}
-                    active={work.id === currentId}
-                    playing={work.id === currentId && isPlaying}
-                    favorite={favoritesSet.has(work.id)}
-                    onPlay={(item) => startWork(item, visibleWorks)}
-                    onOpen={(item) => setDetailId(item.id)}
-                    onFavorite={toggleFavorite}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="works-grid">
+                  {renderedWorks.map((work, index) => (
+                    <WorkCard
+                      key={work.id}
+                      work={work}
+                      index={index}
+                      active={work.id === currentId}
+                      playing={work.id === currentId && isPlaying}
+                      favorite={favoritesSet.has(work.id)}
+                      onPlay={(item) => startWork(item, visibleWorks)}
+                      onOpen={(item) => setDetailId(item.id)}
+                      onFavorite={toggleFavorite}
+                    />
+                  ))}
+                </div>
+                {renderedWorks.length < visibleWorks.length && (
+                  <button
+                    className="load-more"
+                    onClick={() => setWorksLimit((limit) => limit + 48)}
+                  >
+                    加载更多
+                    <small>
+                      还有 {visibleWorks.length - renderedWorks.length} 件
+                    </small>
+                  </button>
+                )}
+              </>
             ) : (
               <div className="empty-state">
                 <span className="empty-mark">夜</span>

@@ -76,7 +76,7 @@ export const SOURCE_PRESETS: SourcePreset[] = [
   {
     id: "bundled",
     label: "内置快照",
-    detail: "APK 自带 24 件作品，完全离线",
+    detail: "APK 自带 200 件作品，完全离线",
   },
 ];
 
