@@ -1,7 +1,7 @@
 {
   "name": "yoru-asmr-player",
   "private": true,
-  "version": "1.2.8",
+  "version": "1.2.9",
   "type": "module",
   "description": "YORU — an ASMR listening room powered by asmr.one",
   "scripts": {

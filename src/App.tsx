@@ -169,6 +169,7 @@ function App() {
   const [queueOpen, setQueueOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false);
+  const [demoSubtitlesEnabled, setDemoSubtitlesEnabled] = useState(false);
   const [subtitleStore, setSubtitleStore] = useState<Record<string, StoredSubtitles>>(
     () => readSubtitleStore(),
   );
@@ -297,13 +298,19 @@ function App() {
     : undefined;
   const subtitleSource = importedSubtitles ?? officialSubtitle;
   const subtitleDuration = duration > 0 ? duration : currentTrack?.duration || 20;
-  const subtitleCues = useMemo(
-    () =>
-      subtitleSource
-        ? parseSubtitleText(subtitleSource.content, subtitleDuration)
-        : buildDemoSubtitles(currentWork, currentTrack, subtitleDuration),
-    [subtitleSource, currentWork, currentTrack, subtitleDuration],
-  );
+  const subtitleCues = useMemo(() => {
+    if (subtitleSource) {
+      return parseSubtitleText(subtitleSource.content, subtitleDuration);
+    }
+    if (!demoSubtitlesEnabled) return [];
+    return buildDemoSubtitles(currentWork, currentTrack, subtitleDuration);
+  }, [
+    subtitleSource,
+    demoSubtitlesEnabled,
+    currentWork,
+    currentTrack,
+    subtitleDuration,
+  ]);
   const activeSubtitleCue = useMemo(
     () => activeCueIndex(subtitleCues, currentTime),
     [subtitleCues, currentTime],
@@ -312,8 +319,14 @@ function App() {
     ? `已导入 · ${importedSubtitles.name}`
     : officialSubtitle
       ? `官方字幕 · ${(currentTrack?.subtitleFormat || "vtt").toUpperCase()}`
-      : "演示字幕 · 非原作品台本";
-  const subtitleIsDemo = !subtitleSource;
+      : demoSubtitlesEnabled
+        ? "演示字幕 · 非原作品台本"
+        : "暂无字幕 · 可导入 SRT / LRC / TXT";
+  const subtitleIsDemo = !subtitleSource && demoSubtitlesEnabled;
+
+  useEffect(() => {
+    setDemoSubtitlesEnabled(false);
+  }, [currentWork.id]);
 
   currentWorkRef.current = currentWork;
   currentTrackRef.current = currentTrack;
@@ -1024,6 +1037,7 @@ function App() {
       };
       setSubtitleStore(next);
       writeSubtitleStore(next);
+      setDemoSubtitlesEnabled(false);
       pushToast(`已导入字幕 · ${file.name}`, "success");
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "字幕导入失败", "error");
@@ -1036,10 +1050,16 @@ function App() {
     delete next[currentSubtitleKey];
     setSubtitleStore(next);
     writeSubtitleStore(next);
-    pushToast(
-      officialSubtitle ? "已恢复官方字幕" : "已恢复演示字幕",
-      "neutral",
-    );
+    pushToast(officialSubtitle ? "已恢复官方字幕" : "已清除字幕", "neutral");
+  }
+
+  function handleShowDemoSubtitles() {
+    setDemoSubtitlesEnabled(true);
+    pushToast("已显示演示字幕 · 非原作品台本", "neutral");
+  }
+
+  function handleHideDemoSubtitles() {
+    setDemoSubtitlesEnabled(false);
   }
 
   async function handleCacheTrack(work: Work, track: Track) {
@@ -1615,6 +1635,7 @@ function App() {
         activeCue={activeSubtitleCue}
         subtitleLabel={subtitleLabel}
         subtitleIsDemo={subtitleIsDemo}
+        subtitleCanClear={Boolean(importedSubtitles)}
         onClose={() => setNowPlayingOpen(false)}
         onToggle={() => setIsPlaying((playing) => !playing)}
         onNext={playNextTrack}
@@ -1628,6 +1649,8 @@ function App() {
         onFavorite={() => toggleFavorite(currentWork.id)}
         onImportSubtitles={handleImportSubtitles}
         onClearSubtitles={handleClearSubtitles}
+        onUseDemo={handleShowDemoSubtitles}
+        onHideDemo={handleHideDemoSubtitles}
       />
 
       <QueueDrawer

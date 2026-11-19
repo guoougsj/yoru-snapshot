@@ -44,6 +44,26 @@
   }
 }
 
+.nowplaying-backdrop {
+  position: absolute;
+  inset: -42px;
+  background-position: center;
+  background-size: cover;
+  filter: blur(30px) saturate(1.15) brightness(0.52);
+  transform: scale(1.06);
+  opacity: 0.94;
+  pointer-events: none;
+}
+
+.nowplaying-backdrop-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(8, 9, 11, 0.44), rgba(8, 9, 11, 0.68) 54%, #08090b 95%),
+    radial-gradient(circle at 50% 12%, rgba(231, 185, 135, 0.1), transparent 48%);
+  pointer-events: none;
+}
+
 .nowplaying-glow {
   position: absolute;
   top: -240px;
@@ -166,9 +186,15 @@
     0 0 0 1px rgba(231, 185, 135, 0.05);
 }
 
-.nowplaying-art .cover-art {
+.nowplaying-art .cover-art,
+.nowplaying-cover-image {
   width: 100%;
   height: 100%;
+}
+
+.nowplaying-cover-image {
+  display: block;
+  object-fit: cover;
 }
 
 .nowplaying-format {
@@ -258,10 +284,69 @@
   text-shadow: 0 0 34px rgba(231, 185, 135, 0.22);
 }
 
-.lyric-empty {
-  margin: 0;
-  font-size: 10px;
+.lyric-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 100%;
+  padding: 18px 8px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.lyric-empty-state > svg {
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.lyric-empty-state strong {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.lyric-empty-state > span {
+  max-width: 320px;
+  font-size: 9px;
+  line-height: 1.8;
+  text-align: center;
   color: var(--muted-dim);
+}
+
+.lyric-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.lyric-empty-actions button {
+  height: 30px;
+  padding: 0 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 8px;
+  color: var(--muted);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.lyric-empty-actions button:first-child {
+  border-color: rgba(231, 185, 135, 0.35);
+  background: rgba(231, 185, 135, 0.06);
+  color: var(--accent);
+}
+
+.lyric-empty-actions button:hover {
+  border-color: rgba(231, 185, 135, 0.45);
+  color: var(--text-soft);
 }
 
 .nowplaying-subtitle-meta {

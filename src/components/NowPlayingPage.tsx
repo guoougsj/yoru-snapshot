@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ChevronDown,
   FileText,
@@ -11,6 +11,7 @@ import {
   Trash2,
   Volume2,
 } from "lucide-react";
+import { originalCoverUrl } from "../lib/covers";
 import { formatShortDuration } from "../lib/format";
 import type { SubtitleCue } from "../lib/subtitles";
 import type { Track, Work } from "../types";
@@ -32,6 +33,7 @@ interface NowPlayingPageProps {
   activeCue: number;
   subtitleLabel: string;
   subtitleIsDemo: boolean;
+  subtitleCanClear: boolean;
   onClose: () => void;
   onToggle: () => void;
   onNext: () => void;
@@ -42,6 +44,8 @@ interface NowPlayingPageProps {
   onFavorite: () => void;
   onImportSubtitles: (file: File) => void;
   onClearSubtitles: () => void;
+  onUseDemo: () => void;
+  onHideDemo: () => void;
 }
 
 export function NowPlayingPage({
@@ -60,6 +64,7 @@ export function NowPlayingPage({
   activeCue,
   subtitleLabel,
   subtitleIsDemo,
+  subtitleCanClear,
   onClose,
   onToggle,
   onNext,
@@ -70,9 +75,17 @@ export function NowPlayingPage({
   onFavorite,
   onImportSubtitles,
   onClearSubtitles,
+  onUseDemo,
+  onHideDemo,
 }: NowPlayingPageProps) {
   const activeRef = useRef<HTMLParagraphElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [coverFailed, setCoverFailed] = useState(false);
+  const coverUrl = originalCoverUrl(work);
+
+  useEffect(() => {
+    setCoverFailed(false);
+  }, [work.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +96,14 @@ export function NowPlayingPage({
 
   return (
     <div className="nowplaying-overlay" role="dialog" aria-modal="true" aria-label="播放详情">
+      {coverUrl && !coverFailed && (
+        <div
+          className="nowplaying-backdrop"
+          style={{ backgroundImage: `url("${coverUrl}")` }}
+          aria-hidden="true"
+        />
+      )}
+      <div className="nowplaying-backdrop-shade" aria-hidden="true" />
       <div className="nowplaying-glow" aria-hidden="true" />
 
       <header className="nowplaying-top">
@@ -120,7 +141,19 @@ export function NowPlayingPage({
 
       <div className="nowplaying-main">
         <div className="nowplaying-art">
-          <CoverArt art={work.art} title={work.title} />
+          {coverUrl && !coverFailed ? (
+            <img
+              className="nowplaying-cover-image"
+              src={coverUrl}
+              alt={`${work.title} 封面`}
+              referrerPolicy="no-referrer"
+              loading="eager"
+              decoding="async"
+              onError={() => setCoverFailed(true)}
+            />
+          ) : (
+            <CoverArt art={work.art} title={work.title} />
+          )}
           <span className="nowplaying-format">
             {track?.format?.toUpperCase() ?? "PREVIEW"}
           </span>
@@ -149,19 +182,37 @@ export function NowPlayingPage({
                 </p>
               ))
             ) : (
-              <p className="lyric-empty">正在准备字幕…</p>
+              <div className="lyric-empty-state">
+                <FileText size={20} strokeWidth={1.5} />
+                <strong>暂无可用字幕</strong>
+                <span>
+                  如果作品带官方 VTT 会自动显示；也可导入 SRT / LRC / TXT，或查看演示字幕。
+                </span>
+                <div className="lyric-empty-actions">
+                  <button type="button" onClick={() => fileRef.current?.click()}>
+                    导入字幕
+                  </button>
+                  <button type="button" onClick={onUseDemo}>
+                    查看演示字幕
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
-          <div className="nowplaying-subtitle-meta">
-            <span className={subtitleIsDemo ? "is-demo" : ""}>{subtitleLabel}</span>
-            {!subtitleIsDemo && (
-              <button onClick={onClearSubtitles}>
-                <Trash2 size={11} />
-                清除字幕
-              </button>
-            )}
-          </div>
+          {(cues.length > 0 || subtitleIsDemo) && (
+            <div className="nowplaying-subtitle-meta">
+              <span className={subtitleIsDemo ? "is-demo" : ""}>{subtitleLabel}</span>
+              {subtitleIsDemo ? (
+                <button onClick={onHideDemo}>关闭演示</button>
+              ) : subtitleCanClear ? (
+                <button onClick={onClearSubtitles}>
+                  <Trash2 size={11} />
+                  清除导入
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
 

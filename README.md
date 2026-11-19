@@ -45,7 +45,7 @@ npm run sync       # 抓取最新作品与原站标签，写入实时缓存
 
 ## Android APK
 
-安装包：`release/YORU-夜音-1.2.8.apk`（Android 7.0+，minSdk 24 / targetSdk 36，包名 `com.yoru.asmr`）。
+安装包：`release/YORU-夜音-1.2.9.apk`（Android 7.0+，minSdk 24 / targetSdk 36，包名 `com.yoru.asmr`）。
 
 ```bash
 npm.cmd run android:build     # 构建 dist、同步到 android/、产出 debug APK
@@ -68,7 +68,7 @@ APK 的播放与缓存策略：
 - 官方音轨加载失败时自动回退到本地 `ambient-*.wav`，并在详情页提示“完整音轨加载失败，已切换本地试听”。
 - 首次出现成人作品时显示 18+ 确认；不提供“仅全年龄”过滤模式，符合“不需要过滤”的要求。
 
-### 网络、数据源与分页（1.2.3 → 1.2.8）
+### 网络、数据源与分页（1.2.3 → 1.2.9）
 
 2026 年 8 月起，asmr.one 的官方 API 域名在部分地区被阻断；公共 CORS 中继又经常返回 429/500。1.2.3 把同步改成三层，1.2.4 把线路做成**一键预设**，1.2.5 补上完全离线的**内置快照**，1.2.6 把静态快照默认指向本项目的 GitHub Actions 快照，1.2.8 扩到 **500 件作品，每页 20 条分页**：
 
@@ -110,15 +110,19 @@ APK 的播放与缓存策略：
 - 两个面板互斥显示；点击面板外部或按 Esc 关闭；移动端自动收窄到屏幕宽度。
 - 小屏（≤560px）下隐藏通知面板，保留个人资料面板，避免顶栏过挤。
 
-### 播放详情页与滚动字幕（1.2.1）
+### 播放详情页与滚动字幕（1.2.1 / 1.2.9）
 
 - 播放器右侧新增展开按钮，打开全屏播放详情页：大封面、当前音轨、播放进度、上一段/下一段、循环、收藏和音量。
+- **原站封面（1.2.9）**：页内方形封面和全屏背景都优先加载 asmr.one 原站封面，通过内置只读中继访问；加载失败时自动回退到 YORU 程序化封面。
+- **字幕不再被演示内容干扰（1.2.9）**：
+  - 默认不显示演示字幕；没有官方字幕或导入字幕时，显示“暂无可用字幕”的空状态。
+  - 空状态提供“导入字幕”和“查看演示字幕”两个按钮；演示字幕只在主动点击后出现，并可随时“关闭演示”。
+  - 切换作品时自动关闭演示字幕；导入字幕后也会自动关闭演示模式。
 - 页内字幕按当前播放时间自动高亮，并平滑滚动到当前行；过去/当前/未到的行有明显层级。
-- **官方字幕**：如果 tracks 里同一音轨有 `.vtt` / `.srt` / `.lrc` 文本资源（`has_subtitle: true` 的作品），App 会自动拉取并显示“官方字幕 · VTT”；用户导入的字幕优先；没有官方字幕时才使用演示字幕。
-- 内置一套**演示字幕**（作品标题、社团、标签和 YORU 原创氛围句），明确标注“演示字幕 · 非原作品台本”，不冒充作品原字幕。
+- **官方字幕**：如果 tracks 里同一音轨有 `.vtt` / `.srt` / `.lrc` 文本资源（`has_subtitle: true` 的作品），App 会自动拉取并显示“官方字幕 · VTT”；用户导入的字幕优先。
 - 支持导入用户自己的 `.srt` / `.lrc` / `.txt` 字幕：
-  - SRT 解析标准时间轴；LRC 解析 `[mm:ss.xx]` 标签；TXT 按行均匀分配到当前音轨时长。
-  - 导入文件按“作品 + 音轨”保存在 `localStorage`，下次播放同一段仍可用；可一键清除并恢复演示字幕。
+  - SRT/VTT 解析标准时间轴；LRC 解析 `[mm:ss.xx]` 标签；TXT 按行均匀分配到当前音轨时长。
+  - 导入文件按“作品 + 音轨”保存在 `localStorage`，下次播放同一段仍可用；可一键清除导入内容。
   - 文件上限 512 KB，导入失败会明确提示。
 - 播放详情页打开时，Android 返回键优先收起该页面，再处理详情抽屉/队列/首页。
 
@@ -193,7 +197,7 @@ npx capacitor-assets generate --android --iconBackgroundColor '#0c0d0f' --iconBa
 ## 安装 APK
 
 ```bash
-adb install -r release/YORU-夜音-1.2.8.apk
+adb install -r release/YORU-夜音-1.2.9.apk
 ```
 
 也可以把 APK 复制到手机后手动安装（需允许“安装未知来源应用”）。
@@ -215,7 +219,7 @@ src/             React 界面、组件与样式
 
 ## 已验证
 
-- `npm run build` 通过（TypeScript + Vite，v1.2.8）。
+- `npm run build` 通过（TypeScript + Vite，v1.2.9）。
 - **新中继链路实测**：`furina-relay` 分 25 页抓取 500 件作品耗时 14.9 秒，每页 20 件；`RJ01683351` 的 5 段音轨在约 1 秒内返回，5/5 带官方 VTT 字幕。`/api/works` 返回 500 件作品、18 个原站标签、含成人内容。
 - **服务端快路径实测**：重启服务后 `POST /api/sync` 21.18 秒返回 500 件；`GET /api/works` 返回 500 件、18 个标签；`GET /api/tracks/1683351` 命中缓存 11ms 返回 5 段音轨、5 个字幕 URL，传输标记为 `furina-relay`。
 - **一键预设实测**：面板列出 7 个预设；点击“内置中继 / 仅直连 / 公共中继 / 自动选择 / 内置快照 / 静态快照”会立即写入 `yoru.data-source-v2` 并标记当前项；点击“自建中继”会预填内置地址。重新打开面板后选择保持，控制台无错误。
@@ -236,7 +240,9 @@ src/             React 界面、组件与样式
 - Web 端点击缓存会明确提示“离线缓存目前仅在 Android 客户端可用”，不会静默失败；整部作品缓存超过 200 MB 时会先确认。
 - **官方字幕链路已验证**：`RJ01683351` 的音轨树有 5 个唯一音轨、10 个 VTT；归一化后 5/5 个音轨都带上 `subtitleUrl`；真实 VTT 以 `WEBVTT` 开头、含 62 条 cue；`/api/subtitles` 返回 `200`、3,113 字节。
 - **顶栏面板已验证**：浏览器内点击头像可打开个人资料，点击铃铛可打开数据通知；两面板互斥、点击外部关闭、快捷入口可跳转，控制台无错误。
-- APK：`release/YORU-夜音-1.2.8.apk`，21,696,551 bytes，SHA-256 `68837819FAFEAAAEE6A73F0CF262A5F4446E4425DD2FDE4F9AFB16F3FF706317`；versionCode 12 / versionName 1.2.8；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、播放详情/字幕页面、顶栏个人资料/通知面板与 7 个一键数据源预设。
+- **原站封面背景已验证（1.2.9）**：播放详情页的方形封面和全屏背景都使用原站封面 `https://asmr.furina.in/api/cover/1714306.jpg?type=main`，图片实际加载为 560×420；背景应用 `blur(30px) saturate(1.15) brightness(0.52)`，控制台无图片错误。
+- **字幕空状态已验证（1.2.9）**：打开播放详情页默认 0 行演示字幕，显示“暂无可用字幕”与“导入字幕 / 查看演示字幕”；点击“查看演示字幕”出现 8 行并显示“关闭演示”，关闭后恢复空状态且隐藏字幕元信息；控制台无错误。
+- APK：`release/YORU-夜音-1.2.9.apk`，21,697,271 bytes，SHA-256 `6E9B6AA1C944334A9B59D99B0DE159498F41BA059CFECEB922580DCB71307201`；versionCode 13 / versionName 1.2.9；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面背景、播放详情/字幕页面、顶栏个人资料/通知面板与 7 个一键数据源预设。
 - APK 静态校验：Manifest 中 `PlaybackService` 的 `foregroundServiceType=mediaPlayback`，已声明 `WAKE_LOCK`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`、`POST_NOTIFICATIONS`；`classes.dex` 含 `PlaybackService`、`BackgroundAudioPlugin`、`MediaSession`；打包 JS 含 `BackgroundAudio`、`AudioCache`、播放详情页/字幕解析、网络对冲和离线状态逻辑。
 - **本次已通过 `furina-relay` 成功同步 500 件真实作品**，并写入 `server/cache/live-works.json` 与 `data/live-seed.json`；不再使用旧的 12/24/200 件种子。
 
