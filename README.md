@@ -221,7 +221,7 @@ src/             React 界面、组件与样式
 - **GitHub Actions 已跑通**：`guoougsj/yoru-snapshot` 的 `Sync asmr.one snapshot` 运行 `44507548344` 成功，并提交 `b391dfc`；raw 快照返回 `200`、200 件作品、抓取时间 `2026-11-19T10:38:42Z`。jsDelivr 分支地址有缓存，测试时仍返回旧的 24 件；commit 固定地址 `@b391dfc` 已返回 200 件。
 - **静态快照已预置**：点击“静态快照”会自动填入并保存 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`，无需手动粘贴；Node 模拟中 828ms 返回 200 件作品，状态为 `curated-snapshot` / `snapshot`。
 - **200 件作品实测**：`furina-relay` 分 10 页抓取 200 件作品耗时 10.1 秒，18 个原站标签；音轨接口 1.0 秒返回 5 段、5 个字幕。Web 首屏渲染 48 张卡片，点击“加载更多”后 96 张，剩余数量正确更新。
-- **内置种子已升级**：`data/live-seed.json` 200 件作品、200 个唯一 ID、18 个标签，文件 218,301 bytes；APK 内置同一份 200 件快照。
+- **内置种子已升级**：`data/live-seed.json` 200 件作品、200 个唯一 ID、18 个标签，文件 218,301 bytes；APK 也内置了构建时抓取的 200 件快照。
 - **预设路由实测**：Node 模拟中 `auto` 走 `furina-relay` 返回 200 件（10.1 秒）；`furina` 固定走 `furina-relay`；`snapshot` 走 GitHub 快照返回 200 件（828ms）；`bundled` 在 0ms 内返回 200 件内置快照，状态为 `curated-snapshot` / `bundled`；`custom` 走本地模拟 Worker 返回 24 件；`direct` 在无 VPN 网络下 6 秒内明确失败，不会偷偷回退到内置中继。
 - **自定义数据源实测**：App 内“测试连接”对 `https://asmr.furina.in/api` 返回「中继可用 · 本页 20 个作品」；本地快照 URL 返回「快照可用 · 200 个作品」；保存/清除地址后面板状态正确切换，控制台无错误。
 - **静态快照链路实测**：用本地 HTTP 服务托管 `data/live-seed.json`，`fetchNativeLibrary` 4 毫秒内返回 200 件作品，状态为 `curated-snapshot` / `snapshot`，提示“这是快照，不是实时抓取”。
