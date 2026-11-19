@@ -4,6 +4,15 @@ on:
   schedule:
     # Every two hours. GitHub may delay scheduled runs under load.
     - cron: "17 */2 * * *"
+  push:
+    branches: [main]
+    # Run immediately when the snapshot pipeline itself changes. Do not
+    # trigger on data/live-seed.json, otherwise the workflow's own commit
+    # would create an endless loop.
+    paths:
+      - ".github/workflows/sync-asmr.yml"
+      - "scripts/sync-asmr.mjs"
+      - "server/lib/scrape.mjs"
   workflow_dispatch:
 
 permissions:
