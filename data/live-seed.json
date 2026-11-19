@@ -3,7 +3,7 @@
     "name": "asmr.one",
     "url": "https://asmr.one/works",
     "api": "https://api.asmr-200.com/api/works?order=release&sort=desc",
-    "fetchedAt": "2026-11-19T08:36:38.898Z",
+    "fetchedAt": "2026-11-19T10:20:19.572Z",
     "mode": "live",
     "transport": "furina-relay",
     "note": "通过 furina-relay 只读中继抓取 asmr.one 作品，并按原站标签分类；完整音轨通过官方接口播放。"
