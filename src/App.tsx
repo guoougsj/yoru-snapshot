@@ -637,7 +637,7 @@ function App() {
       })
       .catch(() => {
         if (!cancelled) {
-          pushToast("官方字幕加载失败，已使用演示字幕", "neutral");
+          pushToast("官方字幕加载失败，可导入字幕或查看演示", "neutral");
         }
       });
 

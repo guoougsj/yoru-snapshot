@@ -242,7 +242,7 @@ src/             React 界面、组件与样式
 - **顶栏面板已验证**：浏览器内点击头像可打开个人资料，点击铃铛可打开数据通知；两面板互斥、点击外部关闭、快捷入口可跳转，控制台无错误。
 - **原站封面背景已验证（1.2.9）**：播放详情页的方形封面和全屏背景都使用原站封面 `https://asmr.furina.in/api/cover/1714306.jpg?type=main`，图片实际加载为 560×420；背景应用 `blur(30px) saturate(1.15) brightness(0.52)`，控制台无图片错误。
 - **字幕空状态已验证（1.2.9）**：打开播放详情页默认 0 行演示字幕，显示“暂无可用字幕”与“导入字幕 / 查看演示字幕”；点击“查看演示字幕”出现 8 行并显示“关闭演示”，关闭后恢复空状态且隐藏字幕元信息；控制台无错误。
-- APK：`release/YORU-夜音-1.2.9.apk`，21,697,271 bytes，SHA-256 `6E9B6AA1C944334A9B59D99B0DE159498F41BA059CFECEB922580DCB71307201`；versionCode 13 / versionName 1.2.9；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面背景、播放详情/字幕页面、顶栏个人资料/通知面板与 7 个一键数据源预设。
+- APK：`release/YORU-夜音-1.2.9.apk`，21,697,275 bytes，SHA-256 `EBCE806B875FAACF47B2E260D5B160A55520CA90AD4336895D39B2F6811E26AD`；versionCode 13 / versionName 1.2.9；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面背景、播放详情/字幕页面、顶栏个人资料/通知面板与 7 个一键数据源预设。
 - APK 静态校验：Manifest 中 `PlaybackService` 的 `foregroundServiceType=mediaPlayback`，已声明 `WAKE_LOCK`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`、`POST_NOTIFICATIONS`；`classes.dex` 含 `PlaybackService`、`BackgroundAudioPlugin`、`MediaSession`；打包 JS 含 `BackgroundAudio`、`AudioCache`、播放详情页/字幕解析、网络对冲和离线状态逻辑。
 - **本次已通过 `furina-relay` 成功同步 500 件真实作品**，并写入 `server/cache/live-works.json` 与 `data/live-seed.json`；不再使用旧的 12/24/200 件种子。
 
