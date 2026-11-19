@@ -26,6 +26,13 @@ import {
 } from "../lib/netSettings";
 import { testCustomSource } from "../lib/nativeSource";
 import { ASMR_DAILY } from "../lib/resources";
+import {
+  clearAsmrDailySession,
+  loginAsmrDaily,
+  saveAsmrDailySession,
+  testAsmrDailyToken,
+  type LibrarySourceId,
+} from "../lib/asmrDaily";
 
 interface TopBarProps {
   query: string;
@@ -44,6 +51,11 @@ interface TopBarProps {
   onExpand: () => void;
   onClearCache: () => void;
   onSourceChanged: () => void;
+  activeSourceId: LibrarySourceId;
+  asmrDailyToken: string;
+  asmrDailyUser: string;
+  onSwitchSource: (id: LibrarySourceId) => void;
+  onAsmrDailySessionChanged: () => void;
 }
 
 function formatBytes(size: number): string {
@@ -67,6 +79,11 @@ export function TopBar({
   onExpand,
   onClearCache,
   onSourceChanged,
+  activeSourceId,
+  asmrDailyToken,
+  asmrDailyUser,
+  onSwitchSource,
+  onAsmrDailySessionChanged,
 }: TopBarProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -76,6 +93,11 @@ export function TopBar({
   const [sourceDraft, setSourceDraft] = useState(() => readDataSource().raw);
   const [sourceBusy, setSourceBusy] = useState(false);
   const [sourceMessage, setSourceMessage] = useState("");
+  const [dailyUsername, setDailyUsername] = useState("");
+  const [dailyPassword, setDailyPassword] = useState("");
+  const [dailyTokenDraft, setDailyTokenDraft] = useState("");
+  const [dailyBusy, setDailyBusy] = useState(false);
+  const [dailyMessage, setDailyMessage] = useState("");
   const actionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -200,6 +222,73 @@ export function TopBar({
     onSourceChanged();
   }
 
+  async function handleDailyLogin() {
+    const username = dailyUsername.trim();
+    if (!username || !dailyPassword) {
+      setDailyMessage("请填写 ASMR Daily 用户名和密码");
+      return;
+    }
+    setDailyBusy(true);
+    setDailyMessage("正在登录 ASMR Daily…");
+    try {
+      const session = await loginAsmrDaily(username, dailyPassword);
+      saveAsmrDailySession(session.token, session.username);
+      setDailyPassword("");
+      setDailyTokenDraft("");
+      setDailyMessage(`已登录 · ${session.username}`);
+      onAsmrDailySessionChanged();
+    } catch (error) {
+      setDailyMessage(error instanceof Error ? error.message : "登录失败");
+    } finally {
+      setDailyBusy(false);
+    }
+  }
+
+  async function handleDailyTokenTest() {
+    const token = dailyTokenDraft.trim() || asmrDailyToken;
+    if (!token) {
+      setDailyMessage("请先粘贴 ASMR Daily Token");
+      return;
+    }
+    setDailyBusy(true);
+    setDailyMessage("正在验证 Token…");
+    try {
+      const total = await testAsmrDailyToken(token);
+      setDailyMessage(`Token 可用 · 站点共 ${total} 件作品`);
+    } catch (error) {
+      setDailyMessage(error instanceof Error ? error.message : "Token 验证失败");
+    } finally {
+      setDailyBusy(false);
+    }
+  }
+
+  async function handleDailyTokenSave() {
+    const token = dailyTokenDraft.trim();
+    if (!token) {
+      setDailyMessage("请先粘贴 ASMR Daily Token");
+      return;
+    }
+    setDailyBusy(true);
+    setDailyMessage("正在验证 Token…");
+    try {
+      const total = await testAsmrDailyToken(token);
+      saveAsmrDailySession(token);
+      setDailyTokenDraft("");
+      setDailyMessage(`Token 已保存 · 站点共 ${total} 件作品`);
+      onAsmrDailySessionChanged();
+    } catch (error) {
+      setDailyMessage(error instanceof Error ? error.message : "Token 保存失败");
+    } finally {
+      setDailyBusy(false);
+    }
+  }
+
+  function handleDailyClear() {
+    clearAsmrDailySession();
+    setDailyMessage("已清除 ASMR Daily Token");
+    onAsmrDailySessionChanged();
+  }
+
   return (
     <header className="topbar">
       <div className="topbar-context">
@@ -234,7 +323,7 @@ export function TopBar({
       <div className="topbar-actions" ref={actionsRef}>
         <div className={`connection-pill ${source.mode === "live" ? "live" : ""}`}>
           <span className="connection-dot" />
-          <span>{source.mode === "live" ? "asmr.one · 实时" : "asmr.one · 快照"}</span>
+          <span>{source.mode === "live" ? `${source.name} · 实时` : `${source.name} · 快照`}</span>
           <small>{formatSyncDate(source.fetchedAt)}</small>
         </div>
         <button
@@ -276,7 +365,7 @@ export function TopBar({
               <span className="profile-avatar">夜</span>
               <div className="profile-identity">
                 <strong>夜行听众</strong>
-                <small>YORU · 夜音 v1.3.0</small>
+                <small>YORU · 夜音 v1.4.0</small>
               </div>
               <button
                 className="popover-close"
@@ -312,6 +401,84 @@ export function TopBar({
                 清除
               </button>
             </div>
+
+            <div className="profile-source-switch">
+              <button
+                className={activeSourceId === "asmr-one" ? "is-active" : ""}
+                onClick={() => onSwitchSource("asmr-one")}
+              >
+                asmr.one
+              </button>
+              <button
+                className={activeSourceId === "asmr-daily" ? "is-active" : ""}
+                onClick={() => onSwitchSource("asmr-daily")}
+              >
+                ASMR Daily
+              </button>
+            </div>
+
+            <details className="source-config daily-config">
+              <summary>
+                <span>
+                  <RadioTower size={13} />
+                  ASMR Daily 账号
+                </span>
+                <small>
+                  {asmrDailyUser || (asmrDailyToken ? "已保存 Token" : "未配置")}
+                </small>
+              </summary>
+              <p>登录后只保存 Token，不保存密码；Token 只存在本机。</p>
+              <input
+                value={dailyUsername}
+                onChange={(event) => {
+                  setDailyUsername(event.target.value);
+                  setDailyMessage("");
+                }}
+                placeholder="ASMR Daily 用户名"
+                autoComplete="username"
+              />
+              <input
+                value={dailyPassword}
+                onChange={(event) => {
+                  setDailyPassword(event.target.value);
+                  setDailyMessage("");
+                }}
+                placeholder="密码"
+                type="password"
+                autoComplete="current-password"
+              />
+              <div className="source-config-actions">
+                <button type="button" onClick={handleDailyLogin} disabled={dailyBusy}>
+                  {dailyBusy ? "处理中…" : "登录并切换"}
+                </button>
+                <button type="button" onClick={handleDailyTokenTest} disabled={dailyBusy}>
+                  测试 Token
+                </button>
+              </div>
+              <input
+                value={dailyTokenDraft}
+                onChange={(event) => {
+                  setDailyTokenDraft(event.target.value);
+                  setDailyMessage("");
+                }}
+                placeholder="或粘贴 auth.token"
+                type="password"
+                autoComplete="off"
+              />
+              <div className="source-config-actions">
+                <button type="button" onClick={handleDailyTokenSave} disabled={dailyBusy}>
+                  保存 Token
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDailyClear}
+                  disabled={dailyBusy || !asmrDailyToken}
+                >
+                  清除
+                </button>
+              </div>
+              {dailyMessage && <small className="source-config-message">{dailyMessage}</small>}
+            </details>
 
             <details className="source-config">
               <summary>
@@ -391,7 +558,7 @@ export function TopBar({
               </button>
               <button onClick={onSync} disabled={syncing}>
                 <RefreshCw size={15} />
-                {syncing ? "正在同步…" : "同步 asmr.one"}
+                {syncing ? "正在同步…" : `同步 ${source.name}`}
               </button>
             </div>
 

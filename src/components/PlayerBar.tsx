@@ -75,6 +75,17 @@ export function PlayerBar({
       <div className="player-track">
         <div className="player-cover">
           <CoverArt art={work.art} title={work.title} showMeta={false} />
+          {work.coverUrl && (
+            <img
+              className="player-cover-image"
+              src={work.coverUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={(event) => event.currentTarget.remove()}
+            />
+          )}
         </div>
         <div className="player-copy">
           <div className="player-title-line">

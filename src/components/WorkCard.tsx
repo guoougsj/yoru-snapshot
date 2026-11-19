@@ -36,6 +36,17 @@ export function WorkCard({
           aria-label={`查看 ${work.title}`}
         >
           <CoverArt art={work.art} title={work.title} index={index} />
+          {work.coverUrl && (
+            <img
+              className="work-cover-image"
+              src={work.coverUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={(event) => event.currentTarget.remove()}
+            />
+          )}
         </button>
 
         <span className="work-duration">{workDurationLabel(work.duration)}</span>

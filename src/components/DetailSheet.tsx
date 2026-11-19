@@ -98,7 +98,20 @@ export function DetailSheet({
             <div className="detail-scroll">
               <div className="detail-art">
                 <CoverArt art={work.art} title={work.title} />
-                <span className="detail-art-stamp">YORU SELECTED</span>
+                {work.coverUrl && (
+                  <img
+                    className="detail-art-image"
+                    src={work.coverUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    onError={(event) => event.currentTarget.remove()}
+                  />
+                )}
+                <span className="detail-art-stamp">
+                  {work.source === "asmr-daily" ? "ASMR DAILY" : "YORU SELECTED"}
+                </span>
               </div>
 
               <div className="detail-topline">
@@ -300,27 +313,31 @@ export function DetailSheet({
                 rel="noreferrer"
               >
                 <span>
-                  <small>原始页面</small>
-                  在 asmr.one 查看作品
+                  <small>{work.source === "asmr-daily" ? "资源站页面" : "原始页面"}</small>
+                  在 {work.source === "asmr-daily" ? "ASMR Daily" : "asmr.one"} 查看作品
                 </span>
                 <ExternalLink size={15} />
               </a>
 
-              <a
-                className="detail-source detail-source-alt"
-                href={resourceWorkUrl(ASMR_DAILY, work.id)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span>
-                  <small>外部资源站 · 需登录</small>
-                  在 ASMR Daily 查看作品
-                </span>
-                <ExternalLink size={15} />
-              </a>
+              {work.source !== "asmr-daily" && (
+                <a
+                  className="detail-source detail-source-alt"
+                  href={resourceWorkUrl(ASMR_DAILY, work.id)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span>
+                    <small>外部资源站 · 需登录</small>
+                    在 ASMR Daily 查看作品
+                  </span>
+                  <ExternalLink size={15} />
+                </a>
+              )}
 
               <p className="detail-disclaimer">
-                封面为 YORU 生成的策展视觉。完整音轨通过 asmr.one 官方接口播放；离线缓存仅限个人收听，请勿传播。
+                {work.source === "asmr-daily"
+                  ? "ASMR Daily 目前提供作品元数据；音轨会优先尝试 asmr.one，失败时使用本地试听。封面来自 DLsite / 原站。"
+                  : "封面来自 asmr.one 原站或 YORU 生成。完整音轨通过 asmr.one 官方接口播放；离线缓存仅限个人收听，请勿传播。"}
               </p>
             </div>
           </>

@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, RefreshCw, Shuffle, Sparkles } from "lucide-react";
 import liveSeedRaw from "../data/live-seed.json";
+import {
+  ASMR_DAILY_NAME,
+  fetchAsmrDailyLibrary,
+  readActiveSourceId,
+  readAsmrDailyCachedLibrary,
+  readAsmrDailyToken,
+  readAsmrDailyUser,
+  saveActiveSourceId,
+  type LibrarySourceId,
+} from "./lib/asmrDaily";
 import { fetchNativeLibrary, isNativeApp } from "./lib/nativeSource";
 import { presetSnapshot, readDataSource } from "./lib/netSettings";
 import { fetchTracksForWork } from "./lib/tracks";
@@ -95,7 +105,10 @@ function readNativeSeed(): LibraryData {
   );
 }
 
-const seed = isNativeApp() ? readNativeSeed() : webSeed;
+const initialDailySeed =
+  readActiveSourceId() === "asmr-daily" ? readAsmrDailyCachedLibrary() : null;
+const initialSourceId: LibrarySourceId = initialDailySeed ? "asmr-daily" : "asmr-one";
+const seed = initialDailySeed ?? (isNativeApp() ? readNativeSeed() : webSeed);
 const PAGE_SIZE = 20;
 
 type View = "home" | "favorites";
@@ -141,6 +154,9 @@ function App() {
   const [activeTag, setActiveTag] = useState("all");
   const [view, setView] = useState<View>("home");
   const [page, setPage] = useState(1);
+  const [activeSourceId, setActiveSourceId] = useState<LibrarySourceId>(initialSourceId);
+  const [asmrDailyToken, setAsmrDailyToken] = useState(() => readAsmrDailyToken());
+  const [asmrDailyUser, setAsmrDailyUser] = useState(() => readAsmrDailyUser());
   const [favorites, setFavorites] = useState<string[]>(readFavorites);
   const [currentId, setCurrentId] = useState(() => {
     const saved = savedPlayback.currentId;
@@ -350,12 +366,17 @@ function App() {
         ? valid
         : data.playlists[0]?.workIds ?? data.works.slice(0, 4).map((work) => work.id);
     });
-    if (isNativeApp()) {
-      try {
-        localStorage.setItem("yoru.native-library", JSON.stringify(data));
-      } catch {
-        /* The in-memory library still works without persistent storage. */
-      }
+    const sourceId: LibrarySourceId =
+      data.source.name === ASMR_DAILY_NAME ? "asmr-daily" : "asmr-one";
+    setActiveSourceId(sourceId);
+    saveActiveSourceId(sourceId);
+    try {
+      localStorage.setItem(
+        sourceId === "asmr-daily" ? "yoru.asmr-daily-library" : "yoru.native-library",
+        JSON.stringify(data),
+      );
+    } catch {
+      /* The in-memory library still works without persistent storage. */
     }
   }, []);
 
@@ -435,6 +456,7 @@ function App() {
   // Backoff starts at 30s and caps at 5 minutes; a successful sync stops it.
   useEffect(() => {
     if (!isNativeApp() || !online || library.source.mode === "live") return;
+    if (activeSourceId !== "asmr-one") return;
     const sourceConfig = readDataSource();
     if (sourceConfig.preset === "bundled" || presetSnapshot(sourceConfig)) return;
     let cancelled = false;
@@ -457,7 +479,7 @@ function App() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [online, library.source.mode, sourceRevision]);
+  }, [online, library.source.mode, sourceRevision, activeSourceId]);
 
   useEffect(() => {
     try {
@@ -830,7 +852,17 @@ function App() {
       try {
         let data: LibraryData;
         if (isNativeApp()) {
-          data = await fetchNativeLibrary(60_000);
+          if (activeSourceId === "asmr-daily") {
+            const token = asmrDailyToken || readAsmrDailyToken();
+            if (!token) throw new Error("ASMR Daily Token 未配置");
+            data = await fetchAsmrDailyLibrary(token);
+          } else {
+            data = await fetchNativeLibrary(60_000);
+          }
+        } else if (activeSourceId === "asmr-daily") {
+          const token = asmrDailyToken || readAsmrDailyToken();
+          if (!token) throw new Error("ASMR Daily Token 未配置");
+          data = await fetchAsmrDailyLibrary(token);
         } else {
           const response = await fetch("/api/works");
           if (!response.ok) throw new Error("offline");
@@ -1210,6 +1242,18 @@ function App() {
     }
     setSyncing(true);
     try {
+      if (activeSourceId === "asmr-daily") {
+        const token = asmrDailyToken || readAsmrDailyToken();
+        if (!token) {
+          throw new Error("请先在头像 → ASMR Daily 登录或保存 Token");
+        }
+        const dailyData = await fetchAsmrDailyLibrary(token);
+        applyLibrary(dailyData);
+        if (!silent) {
+          pushToast(`已同步 ${dailyData.works.length} 个作品 · ASMR Daily`, "success");
+        }
+        return;
+      }
       if (isNativeApp()) {
         const preset = readDataSource().preset;
         const nativeData = await fetchNativeLibrary(60_000);
@@ -1264,6 +1308,59 @@ function App() {
     }
   }
 
+  async function switchSource(id: LibrarySourceId) {
+    if (id === activeSourceId) return;
+    if (id === "asmr-one") {
+      applyLibrary(isNativeApp() ? readNativeSeed() : webSeed);
+      pushToast("已切换到 asmr.one 作品源", "success");
+      return;
+    }
+
+    const token = readAsmrDailyToken();
+    const cached = readAsmrDailyCachedLibrary();
+    if (!token) {
+      if (cached) {
+        applyLibrary(cached);
+        pushToast("已切换到 ASMR Daily 缓存 · 配置 Token 后可刷新", "neutral");
+      } else {
+        pushToast("请先在头像 → ASMR Daily 登录或保存 Token", "neutral");
+      }
+      return;
+    }
+    setAsmrDailyToken(token);
+    if (cached) applyLibrary(cached);
+    setSyncing(true);
+    try {
+      const data = await fetchAsmrDailyLibrary(token);
+      applyLibrary(data);
+      pushToast(`已切换到 ASMR Daily · ${data.works.length} 个作品`, "success");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "ASMR Daily 加载失败";
+      if (cached) {
+        pushToast(`${message}；继续使用 ASMR Daily 缓存`, "neutral");
+      } else {
+        pushToast(`${message}；请检查 Token`, "error");
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function handleAsmrDailySessionChanged() {
+    const token = readAsmrDailyToken();
+    setAsmrDailyToken(token);
+    setAsmrDailyUser(readAsmrDailyUser());
+    if (!token) {
+      if (activeSourceId === "asmr-daily") void switchSource("asmr-one");
+      return;
+    }
+    if (activeSourceId === "asmr-daily") {
+      void syncLibrary();
+    } else {
+      void switchSource("asmr-daily");
+    }
+  }
+
   function goToPage(next: number) {
     const clamped = Math.max(1, Math.min(totalPages, next));
     if (clamped === page) return;
@@ -1308,6 +1405,10 @@ function App() {
         onRecent={() => setQueueOpen(true)}
         onPlaylist={playPlaylist}
         onSync={syncLibrary}
+        activeSourceId={activeSourceId}
+        dailyConfigured={Boolean(asmrDailyToken)}
+        onAsmrOne={() => void switchSource("asmr-one")}
+        onAsmrDaily={() => void switchSource("asmr-daily")}
       />
 
       <main className="main">
@@ -1328,6 +1429,11 @@ function App() {
           onExpand={() => setNowPlayingOpen(true)}
           onClearCache={handleClearAllCache}
           onSourceChanged={handleSourceChanged}
+          activeSourceId={activeSourceId}
+          asmrDailyToken={asmrDailyToken}
+          asmrDailyUser={asmrDailyUser}
+          onSwitchSource={(id) => void switchSource(id)}
+          onAsmrDailySessionChanged={handleAsmrDailySessionChanged}
         />
 
         <div className="page">
@@ -1349,10 +1455,10 @@ function App() {
               <p>
                 <strong>
                   {syncing
-                    ? "正在连接 asmr.one"
+                    ? `正在连接 ${library.source.name}`
                     : bundledSnapshot
                       ? "内置快照模式"
-                      : "asmr.one 实时接口暂不可达"}
+                      : `${library.source.name} 实时接口暂不可达`}
                 </strong>
                 <span className="source-banner-detail">
                   {syncing
@@ -1365,10 +1471,12 @@ function App() {
                 <span className="source-banner-note">
                   {bundledSnapshot
                     ? "要联网更新，请在头像 → 网络与数据源切换到自动选择 / 内置中继"
-                    : "可在头像 → 网络与数据源中切换中继或快照；封面与试听由 YORU 生成"}
+                    : library.source.name === ASMR_DAILY_NAME
+                      ? "请在头像 → ASMR Daily 账号中登录或保存 Token；当前显示本地缓存"
+                      : "可在头像 → 网络与数据源中切换中继或快照；封面来自原站或 YORU 生成"}
                 </span>
               </p>
-              <a href="https://asmr.one/works" target="_blank" rel="noreferrer">
+              <a href={library.source.url} target="_blank" rel="noreferrer">
                 打开源站
                 <ExternalLink size={11} strokeWidth={1.8} />
               </a>
@@ -1435,7 +1543,11 @@ function App() {
             </div>
 
             <div className="filter-row">
-              <div className="mood-tabs tag-tabs" role="tablist" aria-label="按 asmr.one 原站标签筛选">
+              <div
+                className="mood-tabs tag-tabs"
+                role="tablist"
+                aria-label={`按 ${library.source.name} 标签筛选`}
+              >
                 <button
                   role="tab"
                   aria-selected={activeTag === "all"}
@@ -1470,7 +1582,7 @@ function App() {
                     ? "只显示你收藏的声音"
                     : query.trim()
                       ? `“${query.trim()}” 的结果`
-                      : `来自 asmr.one · ${tagCategories.length} 个原站标签`}
+                      : `来自 ${library.source.name} · ${tagCategories.length} 个标签`}
                   {visibleWorks.length > 0
                     ? ` · 第 ${page} / ${totalPages} 页`
                     : ""}
@@ -1567,8 +1679,8 @@ function App() {
                 <i />
                 数据源
               </span>
-              <a href="https://asmr.one/works" target="_blank" rel="noreferrer">
-                asmr.one / works
+              <a href={library.source.url} target="_blank" rel="noreferrer">
+                {library.source.name}
               </a>
               <p>作品版权归原作者与社团所有。完整音轨来自官方接口；离线缓存仅限个人收听。</p>
             </div>

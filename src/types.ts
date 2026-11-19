@@ -57,8 +57,10 @@ export interface Work {
   sourceUrl: string;
   /** Bundled local fallback preview. Full tracks come from /api/tracks. */
   audio: string;
-  /** Official asmr.one cover image, when available. */
+  /** Official asmr.one / ASMR Daily cover image, when available. */
   coverUrl?: string;
+  /** Which library this work belongs to. */
+  source?: "asmr-one" | "asmr-daily";
   art: CoverArtSpec;
   description: string;
   ageRating?: AgeRating;

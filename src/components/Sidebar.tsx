@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import type { Playlist, SourceInfo } from "../types";
+import type { LibrarySourceId } from "../lib/asmrDaily";
 import { formatSyncDate } from "../lib/format";
 import { EXTERNAL_RESOURCES } from "../lib/resources";
 
@@ -19,12 +20,16 @@ interface SidebarProps {
   activeView: "home" | "favorites" | "recent";
   favoritesCount: number;
   syncing: boolean;
+  activeSourceId: LibrarySourceId;
+  dailyConfigured: boolean;
   onHome: () => void;
   onExplore: () => void;
   onFavorites: () => void;
   onRecent: () => void;
   onPlaylist: (playlist: Playlist) => void;
   onSync: () => void;
+  onAsmrOne: () => void;
+  onAsmrDaily: () => void;
 }
 
 export function Sidebar({
@@ -33,12 +38,16 @@ export function Sidebar({
   activeView,
   favoritesCount,
   syncing,
+  activeSourceId,
+  dailyConfigured,
   onHome,
   onExplore,
   onFavorites,
   onRecent,
   onPlaylist,
   onSync,
+  onAsmrOne,
+  onAsmrDaily,
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -101,6 +110,26 @@ export function Sidebar({
         ))}
       </div>
 
+      <div className="sidebar-section sidebar-sources">
+        <p className="sidebar-label">SOURCES</p>
+        <div className="source-choices">
+          <button
+            className={activeSourceId === "asmr-one" ? "source-choice active" : "source-choice"}
+            onClick={onAsmrOne}
+          >
+            <span>asmr.one</span>
+            <small>500 件</small>
+          </button>
+          <button
+            className={activeSourceId === "asmr-daily" ? "source-choice active" : "source-choice"}
+            onClick={onAsmrDaily}
+          >
+            <span>ASMR Daily</span>
+            <small>{dailyConfigured ? "Token" : "需 Token"}</small>
+          </button>
+        </div>
+      </div>
+
       <div className="sidebar-section sidebar-resources">
         <p className="sidebar-label">RESOURCES</p>
         {EXTERNAL_RESOURCES.map((resource) => (
@@ -133,15 +162,15 @@ export function Sidebar({
             <Headphones size={15} strokeWidth={1.7} />
           </span>
           <span>
-            <strong>asmr.one</strong>
-            <small>{source.mode === "live" ? "实时作品流" : "作品快照"}</small>
+            <strong>{source.name}</strong>
+            <small>{source.mode === "live" ? "实时作品库" : "作品快照"}</small>
           </span>
           <button
             className={syncing ? "syncing" : ""}
             onClick={onSync}
             disabled={syncing}
-            aria-label="同步 asmr.one"
-            title="抓取最新作品"
+            aria-label={`同步 ${source.name}`}
+            title={`抓取 ${source.name} 最新作品`}
           >
             <RefreshCw size={14} />
           </button>
@@ -157,7 +186,7 @@ export function Sidebar({
           <SlidersHorizontal size={12} />
           HIGH · 48kHz
         </span>
-        <span className="ver">v1.3.0</span>
+        <span className="ver">v1.4.0</span>
       </div>
     </aside>
   );
