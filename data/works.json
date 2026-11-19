@@ -1,0 +1,342 @@
+{
+  "source": {
+    "name": "asmr.one",
+    "url": "https://asmr.one/works",
+    "api": "https://api.asmr-200.com/api/works",
+    "fetchedAt": "2026-11-19T03:45:00.000Z",
+    "mode": "curated-snapshot",
+    "note": "干净的全年龄/治愈系示例快照。运行 npm run sync 可从 asmr.one 拉取实时作品并缓存。"
+  },
+  "works": [
+    {
+      "id": "RJ01426858",
+      "title": "チルタイム、夜の続き",
+      "subtitle": "一息つきたい夜にご褒美を",
+      "circle": "Chill Time Records",
+      "cvs": ["青山吉能"],
+      "tags": ["耳かき", "环境音", "低语", "夜"],
+      "moods": ["sleep", "whisper", "night"],
+      "duration": 3840,
+      "releaseDate": "2025-06-21",
+      "rating": 4.8,
+      "reviewCount": 1284,
+      "sourceUrl": "https://asmr.one/work/RJ01426858",
+      "audio": "/audio/ambient-01.wav",
+      "art": {
+        "motif": "moon",
+        "base": "#101c2a",
+        "glow": "#e6b77e",
+        "ink": "#f1e9dc",
+        "glyph": "夜"
+      },
+      "description": "冰块碰杯、翻书与远处的人声，被收进一条低饱和的声轨。适合关掉主灯之后，让注意力慢慢落地。"
+    },
+    {
+      "id": "RJ419323",
+      "title": "羊神まよいのふわふわ添い寝",
+      "subtitle": "やおよろ温泉郷",
+      "circle": "やおよろ温泉郷",
+      "cvs": ["石見舞菜香"],
+      "tags": ["添い寝", "耳かき", "温泉", "治愈"],
+      "moods": ["sleep", "healing", "whisper"],
+      "duration": 4320,
+      "releaseDate": "2024-11-08",
+      "rating": 4.9,
+      "reviewCount": 2311,
+      "sourceUrl": "https://asmr.one/work/RJ419323",
+      "audio": "/audio/ambient-02.wav",
+      "art": {
+        "motif": "cloud",
+        "base": "#2d2828",
+        "glow": "#e9c9ad",
+        "ink": "#f8f1e7",
+        "glyph": "羊"
+      },
+      "description": "温泉街打烊后的两小时。毛毯、木廊与极轻的呼吸声，陪你从坐姿慢慢滑进睡眠。"
+    },
+    {
+      "id": "RJ01256505",
+      "title": "シェフィールドのオールデイ・リフレッシュ",
+      "subtitle": "アズールレーン ASMR",
+      "circle": "アズールレーン",
+      "cvs": ["小清水亜美"],
+      "tags": ["日常", "茶会", "洗发", "治愈"],
+      "moods": ["healing", "night"],
+      "duration": 5100,
+      "releaseDate": "2025-02-14",
+      "rating": 4.7,
+      "reviewCount": 1896,
+      "sourceUrl": "https://asmr.one/work/RJ01256505",
+      "audio": "/audio/ambient-03.wav",
+      "art": {
+        "motif": "window",
+        "base": "#1c211d",
+        "glow": "#e3b970",
+        "ink": "#f5eee0",
+        "glyph": "茶"
+      },
+      "description": "午后四点的窗边，茶杯落在碟沿，窗帘被风轻轻抬起。一段不赶时间的日常，留给需要被照顾的耳朵。"
+    },
+    {
+      "id": "RJ01457411",
+      "title": "雨音と珈琲、放課後の窓辺",
+      "subtitle": "放学后的雨与一杯咖啡",
+      "circle": "雨音研究所",
+      "cvs": ["雨宮空"],
+      "tags": ["雨声", "咖啡", "白噪音", "阅读"],
+      "moods": ["rain", "focus", "night"],
+      "duration": 3480,
+      "releaseDate": "2025-05-30",
+      "rating": 4.8,
+      "reviewCount": 962,
+      "sourceUrl": "https://asmr.one/works",
+      "audio": "/audio/ambient-04.wav",
+      "art": {
+        "motif": "rain",
+        "base": "#101d20",
+        "glow": "#9fc6bb",
+        "ink": "#edf2e9",
+        "glyph": "雨"
+      },
+      "description": "细密的雨落在教学楼外的香樟叶上。杯壁的水汽、翻页声与远处的放学铃，拼成一间只为你保留的安静教室。"
+    },
+    {
+      "id": "RJ01429503",
+      "title": "焚き火と星空のキャンプ",
+      "subtitle": "篝火、虫鸣与一整片银河",
+      "circle": "夜更かし舎",
+      "cvs": ["篠原灯"],
+      "tags": ["焚火", "虫鸣", "星空", "自然"],
+      "moods": ["nature", "night", "sleep"],
+      "duration": 4680,
+      "releaseDate": "2025-04-12",
+      "rating": 4.6,
+      "reviewCount": 704,
+      "sourceUrl": "https://asmr.one/works",
+      "audio": "/audio/ambient-05.wav",
+      "art": {
+        "motif": "ember",
+        "base": "#241714",
+        "glow": "#e58e57",
+        "ink": "#f6e6d1",
+        "glyph": "焚"
+      },
+      "description": "木柴在火里轻轻爆开，风穿过帐篷的边角。把城市音量调到零，剩下的交给虫鸣和星星。"
+    },
+    {
+      "id": "RJ01136234",
+      "title": "道草屋 たびらこ6 しとしとおうち時間",
+      "subtitle": "雨音木琴与旧宿的午后",
+      "circle": "道草屋",
+      "cvs": ["たびらこ"],
+      "tags": ["雨声", "木琴", "耳かき", "旧宿"],
+      "moods": ["rain", "healing", "nature"],
+      "duration": 4020,
+      "releaseDate": "2024-01-10",
+      "rating": 4.9,
+      "reviewCount": 1503,
+      "sourceUrl": "https://asmr.one/work/RJ01136234",
+      "audio": "/audio/ambient-06.wav",
+      "art": {
+        "motif": "garden",
+        "base": "#182019",
+        "glow": "#c8c690",
+        "ink": "#eff0de",
+        "glyph": "道"
+      },
+      "description": "雨落在旧木屋的檐下，木琴偶尔响一声。炉火、茶气、廊下经过的风，像一场不需要说话的拜访。"
+    },
+    {
+      "id": "RJ01441072",
+      "title": "深海のプラネタリウム",
+      "subtitle": "鲸歌与蓝色冥想",
+      "circle": "SILENT TIDE",
+      "cvs": ["月城ひかり"],
+      "tags": ["深海", "鲸歌", "冥想", "白噪音"],
+      "moods": ["focus", "nature", "sleep"],
+      "duration": 5400,
+      "releaseDate": "2025-03-26",
+      "rating": 4.7,
+      "reviewCount": 611,
+      "sourceUrl": "https://asmr.one/works",
+      "audio": "/audio/ambient-07.wav",
+      "art": {
+        "motif": "wave",
+        "base": "#0b1d2c",
+        "glow": "#6cb7b9",
+        "ink": "#e3f1ec",
+        "glyph": "海"
+      },
+      "description": "下潜到没有信号的地方。鲸歌从很远的水层传来，呼吸被拉长，思绪像气泡一样，一颗一颗浮出水面。"
+    },
+    {
+      "id": "RJ01463820",
+      "title": "午前二時の喫茶店",
+      "subtitle": "凌晨两点的咖啡馆",
+      "circle": "余白喫茶",
+      "cvs": ["一ノ瀬ゆう"],
+      "tags": ["咖啡馆", "低语", "城市", "爵士"],
+      "moods": ["night", "whisper", "focus"],
+      "duration": 3180,
+      "releaseDate": "2025-07-09",
+      "rating": 4.8,
+      "reviewCount": 843,
+      "sourceUrl": "https://asmr.one/works",
+      "audio": "/audio/ambient-08.wav",
+      "art": {
+        "motif": "cafe",
+        "base": "#231a15",
+        "glow": "#dd9d65",
+        "ink": "#f3e4d0",
+        "glyph": "喫"
+      },
+      "description": "唱片转到 B 面，勺子碰了一下杯沿。店里只剩你、bartender，和窗外偶尔经过的出租车。"
+    },
+    {
+      "id": "RJ01403388",
+      "title": "雪の森の小さな灯り",
+      "subtitle": "雪森里的一盏灯",
+      "circle": "白樺レコード",
+      "cvs": ["雪村しずく"],
+      "tags": ["雪", "森林", "暖炉", "助眠"],
+      "moods": ["sleep", "nature", "healing"],
+      "duration": 4560,
+      "releaseDate": "2025-01-18",
+      "rating": 4.7,
+      "reviewCount": 977,
+      "sourceUrl": "https://asmr.one/works",
+      "audio": "/audio/ambient-09.wav",
+      "art": {
+        "motif": "mountain",
+        "base": "#162024",
+        "glow": "#a8c8d2",
+        "ink": "#eef3f1",
+        "glyph": "雪"
+      },
+      "description": "雪压低了森林的声音。远处小屋亮着灯，靴子踩进雪里的声响，变得又轻又软。"
+    },
+    {
+      "id": "RJ01450219",
+      "title": "毛布と猫と、雨の午後",
+      "subtitle": "和猫一起虚度的一个下午",
+      "circle": "ねこまど",
+      "cvs": ["小春"],
+      "tags": ["猫", "雨声", "午睡", "日常"],
+      "moods": ["rain", "healing", "sleep"],
+      "duration": 2880,
+      "releaseDate": "2025-06-02",
+      "rating": 4.9,
+      "reviewCount": 1420,
+      "sourceUrl": "https://asmr.one/works",
+      "audio": "/audio/ambient-10.wav",
+      "art": {
+        "motif": "cat",
+        "base": "#28201d",
+        "glow": "#d7aa83",
+        "ink": "#f5e9d9",
+        "glyph": "猫"
+      },
+      "description": "猫在毛毯上换了一个姿势，窗外的雨没有要停的意思。一个下午就这样被允许浪费掉了。"
+    },
+    {
+      "id": "RJ01437710",
+      "title": "ページをめくる音",
+      "subtitle": "图书馆角落的专注时间",
+      "circle": "図書館の隅",
+      "cvs": ["柏木しおり"],
+      "tags": ["阅读", "纸张", "专注", "自习"],
+      "moods": ["focus", "whisper", "rain"],
+      "duration": 4200,
+      "releaseDate": "2025-04-28",
+      "rating": 4.6,
+      "reviewCount": 558,
+      "sourceUrl": "https://asmr.one/works",
+      "audio": "/audio/ambient-11.wav",
+      "art": {
+        "motif": "book",
+        "base": "#25221b",
+        "glow": "#d8c597",
+        "ink": "#f4eddb",
+        "glyph": "頁"
+      },
+      "description": "铅笔尖、纸张纤维、远处有人合上书。没有白噪音的轰鸣，只有一座图书馆本该有的声音。"
+    },
+    {
+      "id": "RJ01468901",
+      "title": "夜明け前の海岸線",
+      "subtitle": "从深蓝走到第一束光",
+      "circle": "TIDE ROOM",
+      "cvs": ["潮見あお"],
+      "tags": ["海浪", "清晨", "呼吸", "自然"],
+      "moods": ["nature", "sleep", "night"],
+      "duration": 3600,
+      "releaseDate": "2025-08-11",
+      "rating": 4.8,
+      "reviewCount": 731,
+      "sourceUrl": "https://asmr.one/works",
+      "audio": "/audio/ambient-12.wav",
+      "art": {
+        "motif": "horizon",
+        "base": "#121d26",
+        "glow": "#e9a68d",
+        "ink": "#f5e7dc",
+        "glyph": "潮"
+      },
+      "description": "潮水一遍遍退去，天边从靛蓝变成很淡的橙。适合把一夜的疲惫留在沙滩上，再慢慢走回去。"
+    }
+  ],
+  "playlists": [
+    {
+      "id": "midnight-radio",
+      "title": "深夜耳语电台",
+      "subtitle": "关灯之后，把世界调成静音",
+      "description": "给还不想睡的人。低声、雨声与翻页声，陪你度过一天里最私密的两小时。",
+      "curator": "YORU 编辑部",
+      "tag": "WHISPER",
+      "moods": ["night", "whisper"],
+      "workIds": ["RJ01426858", "RJ01463820", "RJ01457411", "RJ01437710"],
+      "art": { "base": "#1b2028", "glow": "#e2b27d", "ink": "#f0e7d9" }
+    },
+    {
+      "id": "rainy-day",
+      "title": "雨天待机",
+      "subtitle": "让雨替你完成今天的待办",
+      "description": "窗边的雨、杯中的热气、猫在毛毯上翻身。今天的计划只有一条：不出门。",
+      "curator": "YORU 编辑部",
+      "tag": "RAIN",
+      "moods": ["rain", "healing"],
+      "workIds": ["RJ01457411", "RJ01136234", "RJ01450219", "RJ01468901"],
+      "art": { "base": "#162123", "glow": "#9fc3b1", "ink": "#edf1e9" }
+    },
+    {
+      "id": "deep-focus",
+      "title": "专注一小时",
+      "subtitle": "没有歌词，也没有打扰",
+      "description": "给写作者、夜班人和赶 ddl 的人。把声音铺在背景里，让注意力回到眼前。",
+      "curator": "YORU 编辑部",
+      "tag": "FOCUS",
+      "moods": ["focus"],
+      "workIds": ["RJ01437710", "RJ01441072", "RJ01463820", "RJ01429503"],
+      "art": { "base": "#1d1e1b", "glow": "#d6c598", "ink": "#f1ecdf" }
+    },
+    {
+      "id": "sleep-well",
+      "title": "睡前仪式",
+      "subtitle": "今天到这里就可以了",
+      "description": "洗漱、关灯、戴上耳机。四段柔软的声音，把今天轻轻合上。",
+      "curator": "YORU 编辑部",
+      "tag": "SLEEP",
+      "moods": ["sleep", "healing"],
+      "workIds": ["RJ419323", "RJ01403388", "RJ01450219", "RJ01468901"],
+      "art": { "base": "#202028", "glow": "#c3b7d2", "ink": "#f0ecf5" }
+    }
+  ],
+  "moods": [
+    { "id": "all", "label": "全部", "caption": "ALL" },
+    { "id": "sleep", "label": "睡前", "caption": "SLEEP" },
+    { "id": "rain", "label": "雨声", "caption": "RAIN" },
+    { "id": "focus", "label": "专注", "caption": "FOCUS" },
+    { "id": "nature", "label": "自然", "caption": "NATURE" },
+    { "id": "whisper", "label": "耳语", "caption": "WHISPER" }
+  ]
+}

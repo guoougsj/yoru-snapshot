@@ -1,0 +1,420 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  Bell,
+  Heart,
+  ListMusic,
+  Maximize2,
+  RadioTower,
+  RefreshCw,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import type { LibraryData, SourceInfo } from "../types";
+import { formatSyncDate } from "../lib/format";
+import {
+  forgetRouteHealth,
+  FURINA_RELAY,
+  parseCustomSource,
+  presetLabel,
+  readDataSource,
+  saveDataSource,
+  SOURCE_PRESETS,
+  type DataSourcePreset,
+} from "../lib/netSettings";
+import { testCustomSource } from "../lib/nativeSource";
+
+interface TopBarProps {
+  query: string;
+  onQuery: (value: string) => void;
+  source: SourceInfo;
+  library: LibraryData;
+  syncing: boolean;
+  searchRef: React.RefObject<HTMLInputElement>;
+  onSync: () => void;
+  favoritesCount: number;
+  queueCount: number;
+  cacheCount: number;
+  cacheSize: number;
+  onFavorites: () => void;
+  onQueue: () => void;
+  onExpand: () => void;
+  onClearCache: () => void;
+  onSourceChanged: () => void;
+}
+
+function formatBytes(size: number): string {
+  if (!Number.isFinite(size) || size <= 0) return "0 MB";
+  return `${(size / 1048576).toFixed(1)} MB`;
+}
+
+export function TopBar({
+  query,
+  onQuery,
+  source,
+  syncing,
+  searchRef,
+  onSync,
+  favoritesCount,
+  queueCount,
+  cacheCount,
+  cacheSize,
+  onFavorites,
+  onQueue,
+  onExpand,
+  onClearCache,
+  onSourceChanged,
+}: TopBarProps) {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [sourcePreset, setSourcePreset] = useState<DataSourcePreset>(
+    () => readDataSource().preset,
+  );
+  const [sourceDraft, setSourceDraft] = useState(() => readDataSource().raw);
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const [sourceMessage, setSourceMessage] = useState("");
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!profileOpen && !notificationsOpen) return;
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!actionsRef.current?.contains(event.target as Node)) {
+        setProfileOpen(false);
+        setNotificationsOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setProfileOpen(false);
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [profileOpen, notificationsOpen]);
+
+  function runAndClose(action: () => void) {
+    action();
+    setProfileOpen(false);
+    setNotificationsOpen(false);
+  }
+
+  function expectedKind(preset: DataSourcePreset) {
+    return preset === "snapshot" ? "snapshot" : "relay";
+  }
+
+  async function handleTestSource() {
+    const raw = sourceDraft.trim();
+    const parsed = parseCustomSource(raw);
+    if (!parsed) {
+      setSourceMessage("地址无效，请填写 http(s) 地址");
+      return;
+    }
+    if (parsed.kind !== expectedKind(sourcePreset)) {
+      setSourceMessage(
+        sourcePreset === "snapshot"
+          ? "这不是快照 JSON 地址"
+          : "这是快照地址，请选择“静态快照”",
+      );
+      return;
+    }
+    setSourceBusy(true);
+    setSourceMessage("正在测试…");
+    try {
+      setSourceMessage(await testCustomSource(raw));
+    } catch (error) {
+      setSourceMessage(error instanceof Error ? error.message : "测试失败");
+    } finally {
+      setSourceBusy(false);
+    }
+  }
+
+  function handleSaveSource() {
+    const raw = sourceDraft.trim();
+    const parsed = parseCustomSource(raw);
+    if (!parsed) {
+      setSourceMessage("地址无效，请填写 http(s) 地址");
+      return;
+    }
+    if (parsed.kind !== expectedKind(sourcePreset)) {
+      setSourceMessage(
+        sourcePreset === "snapshot"
+          ? "这不是快照 JSON 地址"
+          : "这是快照地址，请选择“静态快照”",
+      );
+      return;
+    }
+    saveDataSource(sourcePreset, raw);
+    forgetRouteHealth();
+    setSourceDraft(raw);
+    setSourceMessage("已保存，正在同步");
+    onSourceChanged();
+  }
+
+  function handlePreset(preset: DataSourcePreset) {
+    if (preset === "custom" || preset === "snapshot") {
+      const parsed = parseCustomSource(sourceDraft);
+      const usable = parsed?.kind === expectedKind(preset);
+      saveDataSource(preset, usable ? sourceDraft : "");
+      setSourcePreset(preset);
+      if (usable) {
+        forgetRouteHealth();
+        setSourceMessage(`已切换到${presetLabel(preset)}，正在同步`);
+        onSourceChanged();
+      } else if (preset === "custom" && !sourceDraft.trim()) {
+        setSourceDraft(FURINA_RELAY);
+        setSourceMessage("已填入可用的内置中继地址，可直接保存或替换成自己的");
+      } else {
+        setSourceMessage(
+          preset === "snapshot" ? "填入快照 JSON 地址后保存" : "填入中继地址后保存",
+        );
+      }
+      return;
+    }
+
+    const saved = saveDataSource(preset, sourceDraft);
+    if (!saved) {
+      setSourceMessage("切换失败，请重试");
+      return;
+    }
+    forgetRouteHealth();
+    setSourcePreset(preset);
+    setSourceMessage(`已切换到${presetLabel(preset)}，正在同步`);
+    onSourceChanged();
+  }
+
+  return (
+    <header className="topbar">
+      <div className="topbar-context">
+        <span className="context-kicker">你的夜间声音档案</span>
+        <span className="context-date">
+          {new Intl.DateTimeFormat("zh-CN", {
+            month: "long",
+            day: "numeric",
+            weekday: "long",
+          }).format(new Date())}
+        </span>
+      </div>
+
+      <label className="search-box">
+        <Search size={15} strokeWidth={1.8} />
+        <input
+          ref={searchRef}
+          value={query}
+          onChange={(event) => onQuery(event.target.value)}
+          placeholder="搜索作品、社团、声优"
+          aria-label="搜索作品、社团、声优"
+        />
+        {query ? (
+          <button type="button" onClick={() => onQuery("")} aria-label="清空搜索">
+            <X size={13} />
+          </button>
+        ) : (
+          <kbd>/</kbd>
+        )}
+      </label>
+
+      <div className="topbar-actions" ref={actionsRef}>
+        <div className={`connection-pill ${source.mode === "live" ? "live" : ""}`}>
+          <span className="connection-dot" />
+          <span>{source.mode === "live" ? "asmr.one · 实时" : "asmr.one · 快照"}</span>
+          <small>{formatSyncDate(source.fetchedAt)}</small>
+        </div>
+        <button
+          className={`sync-button ${syncing ? "is-syncing" : ""}`}
+          onClick={onSync}
+          disabled={syncing}
+        >
+          <RefreshCw size={14} />
+          <span>{syncing ? "同步中" : "同步"}</span>
+        </button>
+        <button
+          className="icon-button notification"
+          aria-label="数据通知"
+          aria-expanded={notificationsOpen}
+          onClick={() => {
+            setProfileOpen(false);
+            setNotificationsOpen((open) => !open);
+          }}
+        >
+          <Bell size={17} strokeWidth={1.6} />
+          <span className="notification-dot" />
+        </button>
+        <button
+          className={`avatar ${profileOpen ? "is-open" : ""}`}
+          aria-label="个人资料"
+          aria-expanded={profileOpen}
+          onClick={() => {
+            setNotificationsOpen(false);
+            setProfileOpen((open) => !open);
+          }}
+        >
+          <span>夜</span>
+          <i />
+        </button>
+
+        {profileOpen && (
+          <div className="profile-popover" role="dialog" aria-label="个人资料">
+            <div className="profile-head">
+              <span className="profile-avatar">夜</span>
+              <div className="profile-identity">
+                <strong>夜行听众</strong>
+                <small>YORU · 夜音 v1.2.5</small>
+              </div>
+              <button
+                className="popover-close"
+                onClick={() => setProfileOpen(false)}
+                aria-label="关闭个人资料"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="profile-stats">
+              <div>
+                <strong>{favoritesCount}</strong>
+                <span>收藏</span>
+              </div>
+              <div>
+                <strong>{queueCount}</strong>
+                <span>队列</span>
+              </div>
+              <div>
+                <strong>{cacheCount}</strong>
+                <span>缓存</span>
+              </div>
+            </div>
+
+            <div className="profile-cache">
+              <div>
+                <span>离线缓存</span>
+                <strong>{formatBytes(cacheSize)}</strong>
+              </div>
+              <button onClick={onClearCache} disabled={cacheCount === 0}>
+                <Trash2 size={12} />
+                清除
+              </button>
+            </div>
+
+            <details className="source-config">
+              <summary>
+                <span>
+                  <RadioTower size={13} />
+                  网络与数据源
+                </span>
+                <small>{presetLabel(sourcePreset)}</small>
+              </summary>
+              <p>选择线路后立即保存并同步；只有自建中继和静态快照需要填地址。</p>
+              <div className="source-presets">
+                {SOURCE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={sourcePreset === preset.id ? "is-active" : ""}
+                    onClick={() => handlePreset(preset.id)}
+                  >
+                    <strong>{preset.label}</strong>
+                    <small>{preset.detail}</small>
+                  </button>
+                ))}
+              </div>
+              {(sourcePreset === "custom" || sourcePreset === "snapshot") && (
+                <div className="source-custom">
+                  <input
+                    value={sourceDraft}
+                    onChange={(event) => {
+                      setSourceDraft(event.target.value);
+                      setSourceMessage("");
+                    }}
+                    placeholder={
+                      sourcePreset === "snapshot"
+                        ? "https://raw.githubusercontent.com/.../live-seed.json"
+                        : "https://your-worker.workers.dev"
+                    }
+                    spellCheck={false}
+                  />
+                  <div className="source-config-actions">
+                    <button type="button" onClick={handleSaveSource} disabled={sourceBusy}>
+                      保存并同步
+                    </button>
+                    <button type="button" onClick={handleTestSource} disabled={sourceBusy}>
+                      {sourceBusy ? "测试中…" : "测试连接"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {sourceMessage && <small className="source-config-message">{sourceMessage}</small>}
+            </details>
+
+            <div className="profile-actions">
+              <button onClick={() => runAndClose(onFavorites)}>
+                <Heart size={15} />
+                我的收藏
+                {favoritesCount > 0 && <small>{favoritesCount}</small>}
+              </button>
+              <button onClick={() => runAndClose(onQueue)}>
+                <ListMusic size={15} />
+                播放队列
+                <small>{queueCount}</small>
+              </button>
+              <button onClick={() => runAndClose(onExpand)}>
+                <Maximize2 size={15} />
+                播放详情与字幕
+              </button>
+              <button onClick={onSync} disabled={syncing}>
+                <RefreshCw size={15} />
+                {syncing ? "正在同步…" : "同步 asmr.one"}
+              </button>
+            </div>
+
+            <div className="profile-foot">
+              <span className={source.mode === "live" ? "is-live" : ""}>
+                <i />
+                {source.mode === "live" ? "实时数据" : "本地快照"}
+              </span>
+              <small>{formatSyncDate(source.fetchedAt)}</small>
+            </div>
+          </div>
+        )}
+
+        {notificationsOpen && (
+          <div className="notification-popover" role="dialog" aria-label="数据通知">
+            <div className="popover-head">
+              <strong>通知</strong>
+              <button
+                className="popover-close"
+                onClick={() => setNotificationsOpen(false)}
+                aria-label="关闭通知"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="notification-row">
+              <span className={`notification-badge ${source.mode === "live" ? "is-live" : ""}`} />
+              <div>
+                <strong>{source.mode === "live" ? "实时数据已连接" : "正在使用本地快照"}</strong>
+                <small>{formatSyncDate(source.fetchedAt)} · {source.transport || "local"}</small>
+              </div>
+            </div>
+            <div className="notification-row">
+              <span className={`notification-badge ${cacheCount ? "is-cache" : ""}`} />
+              <div>
+                <strong>{cacheCount ? `${cacheCount} 段音轨已缓存` : "暂无离线缓存"}</strong>
+                <small>{formatBytes(cacheSize)} · 仅保存在本机</small>
+              </div>
+            </div>
+            <button className="notification-sync" onClick={onSync} disabled={syncing}>
+              <RefreshCw size={13} />
+              {syncing ? "同步中…" : "立即同步 asmr.one"}
+            </button>
+            <p className="popover-note">通知只反映当前设备的数据状态，不会上传任何内容。</p>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}

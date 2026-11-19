@@ -1,0 +1,42 @@
+{
+  "name": "yoru-asmr-player",
+  "private": true,
+  "version": "1.2.5",
+  "type": "module",
+  "description": "YORU — an ASMR listening room powered by asmr.one",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"node --watch server/index.mjs\" \"vite\"",
+    "dev:web": "vite",
+    "dev:api": "node --watch server/index.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "start": "node server/index.mjs",
+    "sync": "node scripts/sync-asmr.mjs",
+    "relay": "node relay/node-relay.mjs",
+    "relay:check": "node relay/check-relay.mjs",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:build": "npm run build && npx cap sync android && cd android && gradlew.bat assembleDebug",
+    "android:release": "npm run build && npx cap sync android && cd android && gradlew.bat assembleRelease",
+    "generate:audio": "node scripts/generate-audio.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@fontsource-variable/manrope": "^5.2.5",
+    "@fontsource/noto-serif-sc": "^5.2.5",
+    "express": "^4.21.2",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.5"
+  }
+}

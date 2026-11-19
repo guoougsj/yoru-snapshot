@@ -1,0 +1,16 @@
+node_modules/
+dist/
+server/cache/
+*.local
+.DS_Store
+Thumbs.db
+
+# Android build output and local signing material
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/keystore.properties
+android/keystore/
+release/
+

@@ -1,0 +1,66 @@
+name: Sync asmr.one snapshot
+
+on:
+  schedule:
+    # Every two hours. GitHub may delay scheduled runs under load.
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yoru-asmr-snapshot
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fetch asmr.one metadata
+        run: |
+          for attempt in 1 2 3; do
+            if node scripts/sync-asmr.mjs; then
+              exit 0
+            fi
+            echo "::warning::Sync attempt ${attempt} failed; retrying in 20s"
+            sleep 20
+          done
+          exit 1
+
+      - name: Validate snapshot
+        run: |
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('server/cache/live-works.json','utf8'));const works=Array.isArray(j.works)?j.works:[];if(works.length<12)throw new Error('snapshot has only '+works.length+' works');console.log('validated',works.length,'works',(j.tags||[]).length,'tags')"
+
+      - name: Publish snapshot
+        run: |
+          cp server/cache/live-works.json data/live-seed.json
+          git config user.name "yoru-sync[bot]"
+          git config user.email "yoru-sync@users.noreply.github.com"
+          git add data/live-seed.json
+          if git diff --cached --quiet; then
+            echo "No snapshot changes."
+          else
+            git commit -m "chore: sync asmr.one snapshot $(date -u +'%Y-%m-%dT%H:%MZ')"
+            git push
+          fi
+
+      - name: Write snapshot URLs to summary
+        run: |
+          echo "### YORU static snapshot" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "在 App 内选择“静态快照”，填入下面任一地址：" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/data/live-seed.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://cdn.jsdelivr.net/gh/${{ github.repository }}@${{ github.ref_name }}/data/live-seed.json" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
