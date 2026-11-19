@@ -9,22 +9,28 @@ https://github.com/guoougsj/yoru-snapshot
 - 仓库：公开
 - 默认分支：`main`
 - 工作流：`Sync asmr.one snapshot`
-- 最近成功运行：`44504695412`（2026-11-19）
-- 快照提交：`b22b97b chore: sync asmr.one snapshot`
-- 当前快照：200 件作品（工作流下次运行后）
+- 最近成功运行：`44507548344`（2026-11-19）
+- 快照提交：`b391dfc chore: sync asmr.one snapshot`
+- 当前快照：200 件作品
 
 ## 现成快照地址
 
-优先使用 jsDelivr：
+优先使用 raw（更新最快）：
+
+```text
+https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json
+```
+
+备用 jsDelivr：
 
 ```text
 https://cdn.jsdelivr.net/gh/guoougsj/yoru-snapshot@main/data/live-seed.json
 ```
 
-备用 raw：
+jsDelivr 的 `@main` 地址有缓存，刚更新后可能仍返回上一版。需要立即拿到最新版时，用 commit 固定地址：
 
 ```text
-https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json
+https://cdn.jsdelivr.net/gh/guoougsj/yoru-snapshot@b391dfc/data/live-seed.json
 ```
 
 App 的 **静态快照** 预设已经默认填入 raw 地址，直接点击即可，不需要手动粘贴。想换成 jsDelivr 时，在静态快照输入框替换后保存。
@@ -32,15 +38,15 @@ App 的 **静态快照** 预设已经默认填入 raw 地址，直接点击即�
 ## 自检
 
 ```powershell
-npm.cmd run relay:check -- https://cdn.jsdelivr.net/gh/guoougsj/yoru-snapshot@main/data/live-seed.json
+npm.cmd run relay:check -- https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json
 ```
 
 通过时：
 
 ```text
-✓ 快照可用  HTTP 200  1203ms
+✓ 快照可用  HTTP 200  1390ms
   作品 200 件，来源 live
-  抓取时间 2026-11-19T10:20:19.572Z
+  抓取时间 2026-11-19T10:38:42.198Z
 ```
 
 ## 自动更新
