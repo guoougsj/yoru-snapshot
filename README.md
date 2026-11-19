@@ -11,7 +11,7 @@
 - Android 端使用内置 Java `AudioCachePlugin`（避免 Kotlin 构建依赖）把用户选择的音轨下载到应用私有 `files/yoru-audio` 目录，`localStorage` 记录缓存索引；离线播放通过 `Capacitor.convertFileSrc` 读取本地文件。
 - 缓存是用户主动触发的单曲或单作品操作，不提供服务器端批量下载，也不提供缓存文件导出/分发。
 - 第一次遇到成人向作品时会显示 18+ 内容确认；确认后展示全部内容，不做额外过滤。
-- 内置种子为最近一次成功同步的 **200 件作品**快照（含成人内容）。同步成功后会替换为更新后的 200 件作品；如果中继不可用，界面会明确显示 `SNAPSHOT`，不会把旧数据标成实时。
+- 内置种子为最近一次成功同步的 **500 件作品**快照（含成人内容）。同步成功后会替换为更新后的 500 件作品；如果中继不可用，界面会明确显示 `SNAPSHOT`，不会把旧数据标成实时。
 
 ## 数据与版权说明
 
@@ -45,7 +45,7 @@ npm run sync       # 抓取最新作品与原站标签，写入实时缓存
 
 ## Android APK
 
-安装包：`release/YORU-夜音-1.2.7.apk`（Android 7.0+，minSdk 24 / targetSdk 36，包名 `com.yoru.asmr`）。
+安装包：`release/YORU-夜音-1.2.8.apk`（Android 7.0+，minSdk 24 / targetSdk 36，包名 `com.yoru.asmr`）。
 
 ```bash
 npm.cmd run android:build     # 构建 dist、同步到 android/、产出 debug APK
@@ -78,7 +78,7 @@ APK 的播放与缓存策略：
 - **公共中继**：AllOrigins + cors.lol
 - **自建中继**：Cloudflare Worker / Node；点击时会预填可用的内置地址，可直接保存或替换
 - **静态快照**：默认 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`（可替换）
-- **内置快照**：APK 自带 200 件作品，完全离线，不发起网络请求
+- **内置快照**：APK 自带 500 件作品，完全离线，不发起网络请求
 
 点击预设即保存并触发同步，无需再点“保存”；静态快照已预置本项目地址，点击即用。具体三层能力：
 
@@ -192,7 +192,7 @@ npx capacitor-assets generate --android --iconBackgroundColor '#0c0d0f' --iconBa
 ## 安装 APK
 
 ```bash
-adb install -r release/YORU-夜音-1.2.7.apk
+adb install -r release/YORU-夜音-1.2.8.apk
 ```
 
 也可以把 APK 复制到手机后手动安装（需允许“安装未知来源应用”）。
@@ -214,17 +214,17 @@ src/             React 界面、组件与样式
 
 ## 已验证
 
-- `npm run build` 通过（TypeScript + Vite，v1.2.7）。
-- **新中继链路实测**：`furina-relay` 分 10 页抓取 200 件作品耗时 10.1 秒，每页 20 件；`RJ01683351` 的 5 段音轨在约 1 秒内返回，5/5 带官方 VTT 字幕。`/api/works` 返回 200 件作品、18 个原站标签、含成人内容。
-- **服务端快路径实测**：重启服务后 `POST /api/sync` 8.15 秒返回 200 件；`GET /api/works` 返回 200 件、18 个标签；`GET /api/tracks/1683351` 命中缓存 11ms 返回 5 段音轨、5 个字幕 URL，传输标记为 `furina-relay`。
+- `npm run build` 通过（TypeScript + Vite，v1.2.8）。
+- **新中继链路实测**：`furina-relay` 分 25 页抓取 500 件作品耗时 14.9 秒，每页 20 件；`RJ01683351` 的 5 段音轨在约 1 秒内返回，5/5 带官方 VTT 字幕。`/api/works` 返回 500 件作品、18 个原站标签、含成人内容。
+- **服务端快路径实测**：重启服务后 `POST /api/sync` 21.18 秒返回 500 件；`GET /api/works` 返回 500 件、18 个标签；`GET /api/tracks/1683351` 命中缓存 11ms 返回 5 段音轨、5 个字幕 URL，传输标记为 `furina-relay`。
 - **一键预设实测**：面板列出 7 个预设；点击“内置中继 / 仅直连 / 公共中继 / 自动选择 / 内置快照 / 静态快照”会立即写入 `yoru.data-source-v2` 并标记当前项；点击“自建中继”会预填内置地址。重新打开面板后选择保持，控制台无错误。
 - **GitHub Actions 已跑通**：`guoougsj/yoru-snapshot` 的 `Sync asmr.one snapshot` 运行 `44507548344` 成功，并提交 `b391dfc`；raw 快照返回 `200`、200 件作品、抓取时间 `2026-11-19T10:38:42Z`。jsDelivr 分支地址有缓存，测试时仍返回旧的 24 件；commit 固定地址 `@b391dfc` 已返回 200 件。
 - **静态快照已预置**：点击“静态快照”会自动填入并保存 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`，无需手动粘贴；Node 模拟中 828ms 返回 200 件作品，状态为 `curated-snapshot` / `snapshot`。
-- **200 件作品实测**：`furina-relay` 分 10 页抓取 200 件作品耗时 10.1 秒，18 个原站标签；音轨接口 1.0 秒返回 5 段、5 个字幕。Web 首屏渲染 48 张卡片，点击“加载更多”后 96 张，剩余数量正确更新。
-- **内置种子已升级**：`data/live-seed.json` 200 件作品、200 个唯一 ID、18 个标签，文件 218,301 bytes；APK 也内置了构建时抓取的 200 件快照。
-- **预设路由实测**：Node 模拟中 `auto` 走 `furina-relay` 返回 200 件（10.1 秒）；`furina` 固定走 `furina-relay`；`snapshot` 走 GitHub 快照返回 200 件（828ms）；`bundled` 在 0ms 内返回 200 件内置快照，状态为 `curated-snapshot` / `bundled`；`custom` 走本地模拟 Worker 返回 24 件；`direct` 在无 VPN 网络下 6 秒内明确失败，不会偷偷回退到内置中继。
-- **自定义数据源实测**：App 内“测试连接”对 `https://asmr.furina.in/api` 返回「中继可用 · 本页 20 个作品」；本地快照 URL 返回「快照可用 · 200 个作品」；保存/清除地址后面板状态正确切换，控制台无错误。
-- **静态快照链路实测**：用本地 HTTP 服务托管 `data/live-seed.json`，`fetchNativeLibrary` 4 毫秒内返回 200 件作品，状态为 `curated-snapshot` / `snapshot`，提示“这是快照，不是实时抓取”。
+- **500 件作品实测**：`furina-relay` 分 25 页抓取 500 件作品耗时 14.9 秒，18 个原站标签；音轨接口约 1 秒返回 5 段、5 个字幕。Web 每页 20 张卡片，共 25 页；第 1 页显示 20 张，第 25 页显示 20 张且“下一页”禁用。
+- **内置种子已升级**：`data/live-seed.json` 500 件作品、500 个唯一 ID、18 个标签，文件 535,354 bytes；APK 也内置了构建时抓取的 500 件快照。
+- **预设路由实测**：Node 模拟中 `auto` 走 `furina-relay` 返回 500 件（14.9 秒）；`furina` 固定走 `furina-relay`；`bundled` 在 0ms 内返回 500 件内置快照，状态为 `curated-snapshot` / `bundled`；`custom` 走本地模拟 Worker 返回 24 件；`direct` 在无 VPN 网络下 6 秒内明确失败，不会偷偷回退到内置中继。
+- **自定义数据源实测**：App 内“测试连接”对 `https://asmr.furina.in/api` 返回「中继可用 · 本页 20 个作品」；本地快照 URL 返回「快照可用 · 500 个作品」；保存/清除地址后面板状态正确切换，控制台无错误。
+- **静态快照链路实测**：用本地 HTTP 服务托管 `data/live-seed.json`，`fetchNativeLibrary` 毫秒级返回 500 件作品，状态为 `curated-snapshot` / `snapshot`，提示“这是快照，不是实时抓取”。
 - 原站标签聚合已在 Web 界面实际显示（双声道立体声/人头麦、掏耳、治愈、ASMR、萌、低语、系列作品等）。
 - **真实完整音轨播放已验证**：`/api/tracks/RJ01712782` 通过 `allorigins-raw` 返回 16 段 mp3；播放器成功加载官方 `raw.kiko-play-niptan.one` 音频（第一段 56:21，51.6 MB），时间轴从 `0:00/56:21` 推进到 `0:01/56:21`，无媒体错误。
 - **真实音轨切换已验证**：点击第 2 段后播放器显示 `第 2/16 段`，音频源切换到第二段官方 CDN URL，`FULL TRACK` 状态正确。
@@ -235,13 +235,13 @@ src/             React 界面、组件与样式
 - Web 端点击缓存会明确提示“离线缓存目前仅在 Android 客户端可用”，不会静默失败；整部作品缓存超过 200 MB 时会先确认。
 - **官方字幕链路已验证**：`RJ01683351` 的音轨树有 5 个唯一音轨、10 个 VTT；归一化后 5/5 个音轨都带上 `subtitleUrl`；真实 VTT 以 `WEBVTT` 开头、含 62 条 cue；`/api/subtitles` 返回 `200`、3,113 字节。
 - **顶栏面板已验证**：浏览器内点击头像可打开个人资料，点击铃铛可打开数据通知；两面板互斥、点击外部关闭、快捷入口可跳转，控制台无错误。
-- APK：`release/YORU-夜音-1.2.7.apk`，21,650,863 bytes，SHA-256 `09551DBF6EC98A82427C0CC4B738D8EDEA5031331ED02603673ED08AEF418518`；versionCode 11 / versionName 1.2.7；APK Signature Scheme v2 校验通过，zipalign 通过；包含 200 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、播放详情/字幕页面、顶栏个人资料/通知面板与 7 个一键数据源预设。
+- APK：`release/YORU-夜音-1.2.8.apk`，21,696,543 bytes，SHA-256 `856EB8D898524E1FA4A60ADFBBB230709DDB5DC7A52E25B7F3AC983EDB81A895`；versionCode 12 / versionName 1.2.8；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、播放详情/字幕页面、顶栏个人资料/通知面板与 7 个一键数据源预设。
 - APK 静态校验：Manifest 中 `PlaybackService` 的 `foregroundServiceType=mediaPlayback`，已声明 `WAKE_LOCK`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`、`POST_NOTIFICATIONS`；`classes.dex` 含 `PlaybackService`、`BackgroundAudioPlugin`、`MediaSession`；打包 JS 含 `BackgroundAudio`、`AudioCache`、播放详情页/字幕解析、网络对冲和离线状态逻辑。
-- **本次已通过 `furina-relay` 成功同步 200 件真实作品**，并写入 `server/cache/live-works.json` 与 `data/live-seed.json`；不再使用旧的 12/24 件种子。
+- **本次已通过 `furina-relay` 成功同步 500 件真实作品**，并写入 `server/cache/live-works.json` 与 `data/live-seed.json`；不再使用旧的 12/24/200 件种子。
 
 ## 最终验证的边界
 
-- 最终打包前已通过 `furina-relay` 完成一次真实作品列表同步：200 件作品、18 个标签、含成人内容。APK 首屏直接使用这份 200 件快照；联网且中继可用时会自动刷新。`allorigins` / `cors.lol` 仍可能限流，但不再是唯一线路。
+- 最终打包前已通过 `furina-relay` 完成一次真实作品列表同步：500 件作品、18 个标签、含成人内容。APK 首屏直接使用这份 500 件快照；联网且中继可用时会自动刷新。`allorigins` / `cors.lol` 仍可能限流，但不再是唯一线路。
 - 音轨接口后来通过 `allorigins-raw` 成功，`server/cache/tracks/` 已缓存 3 个作品的真实音轨；该目录不纳入版本控制。
 - 本环境没有 Android 真机或模拟器，APK 未做设备启动测试；已完成构建、签名、对齐与静态内容/自定义插件校验。离线缓存的 `AudioCachePlugin` 下载链路、后台播放的 `PlaybackService`（通知栏/锁屏控制、音频焦点、锁屏续播）都需要在真机上确认。
 - 首次播放某个作品时，对冲请求通常几秒内完成，最坏 25 秒；之后会使用服务端 5 分钟内存缓存、24 小时磁盘缓存和客户端 24 小时音轨元数据缓存。

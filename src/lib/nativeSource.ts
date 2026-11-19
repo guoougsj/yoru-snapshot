@@ -36,8 +36,8 @@ const API_MIRRORS = [
   "https://api.asmr-100.com",
   "https://api.asmr-300.com",
 ];
-const SYNC_DEADLINE = 45_000;
-const TARGET_WORKS = 200;
+const SYNC_DEADLINE = 60_000;
+const TARGET_WORKS = 500;
 
 interface RawTag {
   name?: string;
@@ -472,7 +472,7 @@ async function collectWorksHedged(
   let mirror = API_MIRRORS[0];
   let lastError: unknown = null;
 
-  for (let page = 1; page <= 20 && collected.length < TARGET_WORKS; page += 1) {
+  for (let page = 1; page <= 40 && collected.length < TARGET_WORKS; page += 1) {
     if (Date.now() >= deadline) break;
     try {
       const result = await hedgedValue(
@@ -501,8 +501,9 @@ async function collectWorksHedged(
       }
     } catch (error) {
       lastError = error;
-      // Keep a partial page if we already have enough works to be useful.
-      if (collected.length >= 12) break;
+      // Keep the partial library and try the next page. One flaky page
+      // should not cap a 500-work sync at 20 or 40 items.
+      if (collected.length >= 12) continue;
       throw error;
     }
   }

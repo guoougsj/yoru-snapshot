@@ -220,16 +220,23 @@ async function fetchJson(url, { relay = null, timeout = 9000, attempts = 1 } = {
   throw lastError;
 }
 
-const TARGET_WORKS = 200;
+const TARGET_WORKS = 500;
 
 async function collectWorks(base, transport) {
   const collected = [];
   const seenIds = new Set();
   const seenTitles = new Set();
 
-  for (let page = 1; page <= 20 && collected.length < TARGET_WORKS; page++) {
+  for (let page = 1; page <= 40 && collected.length < TARGET_WORKS; page++) {
     const url = `${base}/api/works?order=release&sort=desc&page=${page}&subtitle=0`;
-    const payload = await fetchJson(url, transport);
+    let payload;
+    try {
+      payload = await fetchJson(url, transport);
+    } catch (error) {
+      // One flaky page should not discard a large partial library.
+      if (collected.length >= 12) continue;
+      throw error;
+    }
     const works = Array.isArray(payload?.works) ? payload.works : [];
     if (!works.length) break;
 

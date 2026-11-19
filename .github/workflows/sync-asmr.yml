@@ -48,7 +48,7 @@ jobs:
 
       - name: Validate snapshot
         run: |
-          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('server/cache/live-works.json','utf8'));const works=Array.isArray(j.works)?j.works:[];if(works.length<60)throw new Error('snapshot has only '+works.length+' works');console.log('validated',works.length,'works',(j.tags||[]).length,'tags')"
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('server/cache/live-works.json','utf8'));const works=Array.isArray(j.works)?j.works:[];if(works.length<300)throw new Error('snapshot has only '+works.length+' works');console.log('validated',works.length,'works',(j.tags||[]).length,'tags')"
 
       - name: Publish snapshot
         run: |

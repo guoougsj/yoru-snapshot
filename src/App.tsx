@@ -96,6 +96,7 @@ function readNativeSeed(): LibraryData {
 }
 
 const seed = isNativeApp() ? readNativeSeed() : webSeed;
+const PAGE_SIZE = 20;
 
 type View = "home" | "favorites";
 
@@ -139,7 +140,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState("all");
   const [view, setView] = useState<View>("home");
-  const [worksLimit, setWorksLimit] = useState(48);
+  const [page, setPage] = useState(1);
   const [favorites, setFavorites] = useState<string[]>(readFavorites);
   const [currentId, setCurrentId] = useState(() => {
     const saved = savedPlayback.currentId;
@@ -659,14 +660,41 @@ function App() {
     });
   }, [library.works, query, activeTag, view, favoritesSet]);
 
-  const renderedWorks = useMemo(
-    () => visibleWorks.slice(0, worksLimit),
-    [visibleWorks, worksLimit],
-  );
+  const totalPages = Math.max(1, Math.ceil(visibleWorks.length / PAGE_SIZE));
+  const pageWorks = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return visibleWorks.slice(start, start + PAGE_SIZE);
+  }, [visibleWorks, page]);
+
+  const pageItems = useMemo<(number | "ellipsis")[]>(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+    const selected = new Set<number>([1, totalPages, page - 1, page, page + 1]);
+    if (page <= 3) [2, 3, 4].forEach((value) => selected.add(value));
+    if (page >= totalPages - 2) {
+      [totalPages - 1, totalPages - 2, totalPages - 3].forEach((value) =>
+        selected.add(value),
+      );
+    }
+    const sorted = [...selected]
+      .filter((value) => value >= 1 && value <= totalPages)
+      .sort((a, b) => a - b);
+    const items: (number | "ellipsis")[] = [];
+    sorted.forEach((value, index) => {
+      if (index > 0 && value - sorted[index - 1] > 1) items.push("ellipsis");
+      items.push(value);
+    });
+    return items;
+  }, [page, totalPages]);
 
   useEffect(() => {
-    setWorksLimit(48);
+    setPage(1);
   }, [query, activeTag, view, library.works]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const queueWorks = useMemo(
     () =>
@@ -789,7 +817,7 @@ function App() {
       try {
         let data: LibraryData;
         if (isNativeApp()) {
-          data = await fetchNativeLibrary(25_000);
+          data = await fetchNativeLibrary(60_000);
         } else {
           const response = await fetch("/api/works");
           if (!response.ok) throw new Error("offline");
@@ -1164,7 +1192,7 @@ function App() {
     try {
       if (isNativeApp()) {
         const preset = readDataSource().preset;
-        const nativeData = await fetchNativeLibrary(45_000);
+        const nativeData = await fetchNativeLibrary(60_000);
         applyLibrary(nativeData);
         if (!silent) {
           pushToast(
@@ -1214,6 +1242,13 @@ function App() {
       pushToast("数据源已更新，正在尝试同步", "neutral");
       void syncLibrary();
     }
+  }
+
+  function goToPage(next: number) {
+    const clamped = Math.max(1, Math.min(totalPages, next));
+    if (clamped === page) return;
+    setPage(clamped);
+    window.setTimeout(scrollToCollection, 0);
   }
 
   function scrollToCollection() {
@@ -1416,6 +1451,9 @@ function App() {
                     : query.trim()
                       ? `“${query.trim()}” 的结果`
                       : `来自 asmr.one · ${tagCategories.length} 个原站标签`}
+                  {visibleWorks.length > 0
+                    ? ` · 第 ${page} / ${totalPages} 页`
+                    : ""}
                 </p>
               </div>
             </div>
@@ -1423,7 +1461,7 @@ function App() {
             {visibleWorks.length > 0 ? (
               <>
                 <div className="works-grid">
-                  {renderedWorks.map((work, index) => (
+                  {pageWorks.map((work, index) => (
                     <WorkCard
                       key={work.id}
                       work={work}
@@ -1437,16 +1475,41 @@ function App() {
                     />
                   ))}
                 </div>
-                {renderedWorks.length < visibleWorks.length && (
-                  <button
-                    className="load-more"
-                    onClick={() => setWorksLimit((limit) => limit + 48)}
-                  >
-                    加载更多
-                    <small>
-                      还有 {visibleWorks.length - renderedWorks.length} 件
-                    </small>
-                  </button>
+                {totalPages > 1 && (
+                  <nav className="pagination" aria-label="作品分页">
+                    <button
+                      className="page-step"
+                      onClick={() => goToPage(page - 1)}
+                      disabled={page === 1}
+                    >
+                      上一页
+                    </button>
+                    <div className="page-numbers">
+                      {pageItems.map((item, index) =>
+                        item === "ellipsis" ? (
+                          <span className="page-ellipsis" key={`ellipsis-${index}`}>
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={item}
+                            className={item === page ? "is-active" : ""}
+                            aria-current={item === page ? "page" : undefined}
+                            onClick={() => goToPage(item)}
+                          >
+                            {item}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                    <button
+                      className="page-step"
+                      onClick={() => goToPage(page + 1)}
+                      disabled={page === totalPages}
+                    >
+                      下一页
+                    </button>
+                  </nav>
                 )}
               </>
             ) : (
