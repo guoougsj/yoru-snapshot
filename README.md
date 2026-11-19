@@ -236,7 +236,7 @@ src/             React 界面、组件与样式
 - Web 端点击缓存会明确提示“离线缓存目前仅在 Android 客户端可用”，不会静默失败；整部作品缓存超过 200 MB 时会先确认。
 - **官方字幕链路已验证**：`RJ01683351` 的音轨树有 5 个唯一音轨、10 个 VTT；归一化后 5/5 个音轨都带上 `subtitleUrl`；真实 VTT 以 `WEBVTT` 开头、含 62 条 cue；`/api/subtitles` 返回 `200`、3,113 字节。
 - **顶栏面板已验证**：浏览器内点击头像可打开个人资料，点击铃铛可打开数据通知；两面板互斥、点击外部关闭、快捷入口可跳转，控制台无错误。
-- APK：`release/YORU-夜音-1.2.8.apk`，21,696,543 bytes，SHA-256 `856EB8D898524E1FA4A60ADFBBB230709DDB5DC7A52E25B7F3AC983EDB81A895`；versionCode 12 / versionName 1.2.8；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、播放详情/字幕页面、顶栏个人资料/通知面板与 7 个一键数据源预设。
+- APK：`release/YORU-夜音-1.2.8.apk`，21,696,551 bytes，SHA-256 `68837819FAFEAAAEE6A73F0CF262A5F4446E4425DD2FDE4F9AFB16F3FF706317`；versionCode 12 / versionName 1.2.8；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、播放详情/字幕页面、顶栏个人资料/通知面板与 7 个一键数据源预设。
 - APK 静态校验：Manifest 中 `PlaybackService` 的 `foregroundServiceType=mediaPlayback`，已声明 `WAKE_LOCK`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`、`POST_NOTIFICATIONS`；`classes.dex` 含 `PlaybackService`、`BackgroundAudioPlugin`、`MediaSession`；打包 JS 含 `BackgroundAudio`、`AudioCache`、播放详情页/字幕解析、网络对冲和离线状态逻辑。
 - **本次已通过 `furina-relay` 成功同步 500 件真实作品**，并写入 `server/cache/live-works.json` 与 `data/live-seed.json`；不再使用旧的 12/24/200 件种子。
 
