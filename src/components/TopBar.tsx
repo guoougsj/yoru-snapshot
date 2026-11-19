@@ -13,6 +13,7 @@ import {
 import type { LibraryData, SourceInfo } from "../types";
 import { formatSyncDate } from "../lib/format";
 import {
+  DEFAULT_SNAPSHOT_URL,
   forgetRouteHealth,
   FURINA_RELAY,
   parseCustomSource,
@@ -156,22 +157,32 @@ export function TopBar({
   }
 
   function handlePreset(preset: DataSourcePreset) {
-    if (preset === "custom" || preset === "snapshot") {
+    if (preset === "snapshot") {
       const parsed = parseCustomSource(sourceDraft);
-      const usable = parsed?.kind === expectedKind(preset);
-      saveDataSource(preset, usable ? sourceDraft : "");
-      setSourcePreset(preset);
+      const raw = parsed?.kind === "snapshot" ? sourceDraft : DEFAULT_SNAPSHOT_URL;
+      saveDataSource("snapshot", raw);
+      setSourceDraft(raw);
+      setSourcePreset("snapshot");
+      forgetRouteHealth();
+      setSourceMessage("已使用你的 GitHub 快照，正在同步");
+      onSourceChanged();
+      return;
+    }
+
+    if (preset === "custom") {
+      const parsed = parseCustomSource(sourceDraft);
+      const usable = parsed?.kind === "relay";
+      saveDataSource("custom", usable ? sourceDraft : "");
+      setSourcePreset("custom");
       if (usable) {
         forgetRouteHealth();
-        setSourceMessage(`已切换到${presetLabel(preset)}，正在同步`);
+        setSourceMessage("已切换到自建中继，正在同步");
         onSourceChanged();
-      } else if (preset === "custom" && !sourceDraft.trim()) {
+      } else if (!sourceDraft.trim()) {
         setSourceDraft(FURINA_RELAY);
         setSourceMessage("已填入可用的内置中继地址，可直接保存或替换成自己的");
       } else {
-        setSourceMessage(
-          preset === "snapshot" ? "填入快照 JSON 地址后保存" : "填入中继地址后保存",
-        );
+        setSourceMessage("填入中继地址后保存");
       }
       return;
     }
@@ -263,7 +274,7 @@ export function TopBar({
               <span className="profile-avatar">夜</span>
               <div className="profile-identity">
                 <strong>夜行听众</strong>
-                <small>YORU · 夜音 v1.2.5</small>
+                <small>YORU · 夜音 v1.2.6</small>
               </div>
               <button
                 className="popover-close"

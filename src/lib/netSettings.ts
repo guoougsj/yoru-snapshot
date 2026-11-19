@@ -37,6 +37,8 @@ export interface SourcePreset {
 }
 
 export const FURINA_RELAY = "https://asmr.furina.in/api";
+export const DEFAULT_SNAPSHOT_URL =
+  "https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json";
 
 export const SOURCE_PRESETS: SourcePreset[] = [
   {
@@ -68,7 +70,7 @@ export const SOURCE_PRESETS: SourcePreset[] = [
   {
     id: "snapshot",
     label: "静态快照",
-    detail: "GitHub raw / jsDelivr JSON",
+    detail: "默认你的 GitHub 快照，可替换",
     needsUrl: true,
   },
   {
@@ -111,9 +113,11 @@ export function readDataSource(): DataSourceConfig {
       | Partial<DataSourceConfig>
       | null;
     if (stored && VALID_PRESETS.has(stored.preset as DataSourcePreset)) {
+      const preset = stored.preset as DataSourcePreset;
+      const raw = typeof stored.raw === "string" ? stored.raw : "";
       return {
-        preset: stored.preset as DataSourcePreset,
-        raw: typeof stored.raw === "string" ? stored.raw : "",
+        preset,
+        raw: preset === "snapshot" && !raw ? DEFAULT_SNAPSHOT_URL : raw,
       };
     }
   } catch {
@@ -148,7 +152,9 @@ export function saveDataSource(
     if (preset === "snapshot" && parsed.kind !== "snapshot") return null;
     if (preset === "custom" && parsed.kind !== "relay") return null;
   }
-  const config: DataSourceConfig = { preset, raw: value };
+  const normalizedRaw =
+    value || (preset === "snapshot" ? DEFAULT_SNAPSHOT_URL : "");
+  const config: DataSourceConfig = { preset, raw: normalizedRaw };
   try {
     localStorage.setItem(DATA_SOURCE_KEY, JSON.stringify(config));
     localStorage.removeItem(LEGACY_CUSTOM_KEY);
@@ -207,7 +213,7 @@ export function presetRelay(config: DataSourceConfig): CustomSource | null {
 
 export function presetSnapshot(config: DataSourceConfig): CustomSource | null {
   if (config.preset !== "snapshot") return null;
-  const parsed = parseCustomSource(config.raw);
+  const parsed = parseCustomSource(config.raw || DEFAULT_SNAPSHOT_URL);
   return parsed?.kind === "snapshot" ? parsed : null;
 }
 
