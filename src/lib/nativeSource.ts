@@ -620,8 +620,32 @@ interface TextAsset {
 }
 
 const SUBTITLE_FORMATS = new Set(["vtt", "srt", "lrc"]);
-const MEDIA_EXTENSIONS = /\.(mp3|wav|flac|m4a|ogg|opus)$/i;
+const MEDIA_EXTENSIONS = /\.(mp3|wav|flac|m4a|ogg|opus|mp4|mkv|webm|aac)$/i;
 const SUBTITLE_PRIORITY: Record<string, number> = { vtt: 3, srt: 2, lrc: 1 };
+const VERSION_RULES: Array<[string, RegExp]> = [
+  ["试听版", /試聴版|试听版|プレビュー|preview|sample|ダイジェスト|お試し/i],
+  ["体验版", /体験版|体验版|trial/i],
+  ["完整版", /完整版|完全版|full|本編|本篇|main/i],
+];
+
+function detectTrackVersion(text: string): string {
+  for (const [label, rule] of VERSION_RULES) {
+    if (rule.test(text)) return label;
+  }
+  return "正篇";
+}
+
+function logicalTrackTitle(title: string): string {
+  return (
+    title
+      .replace(
+        /[（(【\[]?\s*(?:試聴版|试听版|体験版|体验版|プレビュー|preview|sample|ダイジェスト|お試し|完整版|完全版|full)\s*[）)】\]]?/gi,
+        "",
+      )
+      .replace(/\s+/g, " ")
+      .trim() || title
+  );
+}
 
 export function normaliseTrackTree(
   raw: RawTrackNode[] | { children?: RawTrackNode[] },
@@ -667,22 +691,26 @@ export function normaliseTrackTree(
     return null;
   };
 
-  const audioNodes: RawTrackNode[] = [];
-  const walk = (nodes: RawTrackNode[] | undefined) => {
+  const audioNodes: Array<{ node: RawTrackNode; folders: string[] }> = [];
+  const walk = (nodes: RawTrackNode[] | undefined, folders: string[] = []) => {
     for (const node of nodes ?? []) {
+      const nextFolders =
+        node?.type === "folder"
+          ? [...folders, String(node.title || "")].filter(Boolean)
+          : folders;
       if (node?.type === "text") {
         collectText(node);
       } else if (node?.type === "audio") {
-        audioNodes.push(node);
+        audioNodes.push({ node, folders });
       }
-      if (Array.isArray(node?.children)) walk(node.children);
+      if (Array.isArray(node?.children)) walk(node.children, nextFolders);
     }
   };
 
   walk(Array.isArray(raw) ? raw : raw?.children);
 
   // Second pass: text assets can appear after their audio node in the tree.
-  for (const node of audioNodes) {
+  for (const { node, folders } of audioNodes) {
     const streamUrl = absoluteMediaUrl(node.mediaStreamUrl);
     const downloadUrl = absoluteMediaUrl(node.mediaDownloadUrl);
     if (streamUrl || downloadUrl) {
@@ -691,11 +719,16 @@ export function normaliseTrackTree(
       const formatMatch = rawTitle.match(/\.([a-z0-9]{2,5})$/i);
       const format = formatMatch ? formatMatch[1].toLowerCase() : "";
       const title = rawTitle.replace(/\.[a-z0-9]{2,5}$/i, "").trim() || rawTitle;
+      const version = detectTrackVersion([...folders, rawTitle].join(" / "));
+      const groupKey = logicalTrackTitle(title);
       const subtitle = findSubtitle(rawTitle, title);
       const candidate: Track = {
         id: String(node.hash || node.id || `track-${sequence}`),
         title,
         format,
+        version,
+        groupKey,
+        path: [...folders, rawTitle].join("/"),
         duration: Number(node.duration) || 0,
         size: Number(node.size) || 0,
         streamUrl: (streamUrl || downloadUrl) as string,
@@ -705,15 +738,11 @@ export function normaliseTrackTree(
         subtitleFormat: subtitle?.format,
       };
 
-      const existing = groups.get(title);
+      const key = `${groupKey}::${version}::${format}`;
+      const existing = groups.get(key);
       const candidateScore = candidate.size || Number.MAX_SAFE_INTEGER;
       const existingScore = existing ? existing.size || Number.MAX_SAFE_INTEGER : Infinity;
-      const preferCandidate =
-        !existing ||
-        candidateScore < existingScore ||
-        (candidateScore === existingScore && format === "mp3" && existing.format !== "mp3");
-
-      if (preferCandidate) groups.set(title, candidate);
+      if (!existing || candidateScore < existingScore) groups.set(key, candidate);
     }
   }
 
@@ -722,7 +751,7 @@ export function normaliseTrackTree(
 
 const trackMemo = new Map<string, { expires: number; tracks: Track[] }>();
 const TRACK_CACHE_TTL = 5 * 60_000;
-const TRACK_META_KEY = "yoru.track-meta-v2";
+const TRACK_META_KEY = "yoru.track-meta-v3";
 const TRACK_META_TTL = 24 * 60 * 60_000;
 
 interface TrackMetaCache {

@@ -175,6 +175,54 @@
   color: #e8a08e;
 }
 
+.track-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+
+.track-tabs + .track-tabs {
+  margin-top: -2px;
+}
+
+.track-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 23px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.015);
+  font-size: 7px;
+  color: var(--muted);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.track-tab:hover {
+  border-color: rgba(231, 185, 135, 0.28);
+  color: var(--text-soft);
+}
+
+.track-tab.is-active {
+  border-color: rgba(231, 185, 135, 0.55);
+  background: rgba(231, 185, 135, 0.08);
+  color: var(--accent);
+}
+
+.track-tab small {
+  font-size: 6px;
+  color: var(--muted-dim);
+}
+
+.track-tab.is-active small {
+  color: rgba(231, 185, 135, 0.7);
+}
+
 .track-list {
   display: flex;
   flex-direction: column;

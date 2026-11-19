@@ -13,7 +13,7 @@ import {
 } from "./lib/asmrDaily";
 import { fetchNativeLibrary, isNativeApp } from "./lib/nativeSource";
 import { presetSnapshot, readDataSource } from "./lib/netSettings";
-import { fetchTracksForWork } from "./lib/tracks";
+import { fetchTracksForWork, selectPlaybackTracks } from "./lib/tracks";
 import {
   cacheKey,
   cacheTrack,
@@ -1130,7 +1130,8 @@ function App() {
     }
     if (workCacheProgress[work.id]) return;
 
-    const tracks = await ensureTracks(work.id);
+    const allTracks = await ensureTracks(work.id);
+    const tracks = allTracks ? selectPlaybackTracks(allTracks) : null;
     if (!tracks?.length) {
       pushToast("没有可缓存的官方音轨，先试试播放或稍后重试", "neutral");
       return;

@@ -365,7 +365,7 @@ export function TopBar({
               <span className="profile-avatar">夜</span>
               <div className="profile-identity">
                 <strong>夜行听众</strong>
-                <small>YORU · 夜音 v1.4.0</small>
+                <small>YORU · 夜音 v1.4.1</small>
               </div>
               <button
                 className="popover-close"
@@ -427,7 +427,9 @@ export function TopBar({
                   {asmrDailyUser || (asmrDailyToken ? "已保存 Token" : "未配置")}
                 </small>
               </summary>
-              <p>登录后只保存 Token，不保存密码；Token 只存在本机。</p>
+              <p>
+                ASMR Daily 没有公开注册入口，账号由站点管理员创建；登录后只保存 Token，不保存密码。
+              </p>
               <input
                 value={dailyUsername}
                 onChange={(event) => {

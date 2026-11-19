@@ -34,6 +34,12 @@ export interface Track {
   /** Official WebVTT/SRT/LRC asset returned by asmr.one, when available. */
   subtitleUrl?: string;
   subtitleFormat?: string;
+  /** Logical segment shared by format variants (mp3/wav/flac/mp4...). */
+  groupKey?: string;
+  /** 完整版 / 正篇 / 体验版 / 试听版. */
+  version?: string;
+  /** Folder + filename path inside the official track tree. */
+  path?: string;
 }
 
 export interface TagCategory {

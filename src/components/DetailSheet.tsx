@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Check,
@@ -76,6 +77,37 @@ export function DetailSheet({
     ? Object.values(cacheIndex).filter((entry) => entry.workId === work.id).length
     : 0;
   const hasTracks = Boolean(tracks?.length);
+  const [formatFilter, setFormatFilter] = useState("all");
+  const [versionFilter, setVersionFilter] = useState("all");
+
+  useEffect(() => {
+    setFormatFilter("all");
+    setVersionFilter("all");
+  }, [work?.id]);
+
+  const formatTabs = useMemo(() => {
+    const order = ["mp3", "m4a", "aac", "ogg", "opus", "wav", "flac", "mp4", "mkv", "webm"];
+    return [...new Set((tracks ?? []).map((track) => track.format || "other"))].sort(
+      (a, b) => (order.indexOf(a) < 0 ? 99 : order.indexOf(a)) - (order.indexOf(b) < 0 ? 99 : order.indexOf(b)),
+    );
+  }, [tracks]);
+
+  const versionTabs = useMemo(() => {
+    const order = ["完整版", "正篇", "体验版", "试听版"];
+    return [...new Set((tracks ?? []).map((track) => track.version || "正篇"))].sort(
+      (a, b) => (order.indexOf(a) < 0 ? 99 : order.indexOf(a)) - (order.indexOf(b) < 0 ? 99 : order.indexOf(b)),
+    );
+  }, [tracks]);
+
+  const filteredTracks = useMemo(
+    () =>
+      (tracks ?? []).filter(
+        (track) =>
+          (formatFilter === "all" || (track.format || "other") === formatFilter) &&
+          (versionFilter === "all" || (track.version || "正篇") === versionFilter),
+      ),
+    [tracks, formatFilter, versionFilter],
+  );
 
   return (
     <>
@@ -218,6 +250,60 @@ export function DetailSheet({
                   </button>
                 </div>
 
+                {hasTracks && formatTabs.length > 1 && (
+                  <div className="track-tabs" role="tablist" aria-label="按格式筛选">
+                    <button
+                      className={`track-tab ${formatFilter === "all" ? "is-active" : ""}`}
+                      onClick={() => setFormatFilter("all")}
+                    >
+                      全部格式
+                    </button>
+                    {formatTabs.map((format) => (
+                      <button
+                        key={format}
+                        className={`track-tab ${formatFilter === format ? "is-active" : ""}`}
+                        onClick={() => setFormatFilter(format)}
+                      >
+                        {format === "other" ? "其他" : format.toUpperCase()}
+                        <small>
+                          {
+                            (tracks ?? []).filter(
+                              (track) => (track.format || "other") === format,
+                            ).length
+                          }
+                        </small>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {hasTracks && versionTabs.length > 1 && (
+                  <div className="track-tabs" role="tablist" aria-label="按版本筛选">
+                    <button
+                      className={`track-tab ${versionFilter === "all" ? "is-active" : ""}`}
+                      onClick={() => setVersionFilter("all")}
+                    >
+                      全部版本
+                    </button>
+                    {versionTabs.map((version) => (
+                      <button
+                        key={version}
+                        className={`track-tab ${versionFilter === version ? "is-active" : ""}`}
+                        onClick={() => setVersionFilter(version)}
+                      >
+                        {version}
+                        <small>
+                          {
+                            (tracks ?? []).filter(
+                              (track) => (track.version || "正篇") === version,
+                            ).length
+                          }
+                        </small>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {tracksLoading && <p className="detail-tracks-note">正在连接 asmr.one 获取音轨…</p>}
                 {!tracksLoading && trackError && (
                   <div className="detail-tracks-note is-error">
@@ -226,17 +312,24 @@ export function DetailSheet({
                   </div>
                 )}
                 {!tracksLoading && !trackError && hasTracks && (
-                  <div className="track-list">
-                    {tracks!.map((track, index) => {
+                  <>
+                    {filteredTracks.length === 0 && (
+                      <p className="detail-tracks-note">
+                        当前筛选没有文件，换一个格式或版本试试。
+                      </p>
+                    )}
+                    <div className="track-list">
+                    {filteredTracks.map((track, index) => {
+                      const sourceIndex = tracks!.indexOf(track);
                       const key = cacheKey(work.id, track.id);
                       const cached = Boolean(cacheIndex[key]);
                       const progress = trackCacheProgress?.[key];
-                      const active = currentTrackIndex === index;
+                      const active = currentTrackIndex === sourceIndex;
                       return (
                         <div className={`track-row ${active ? "is-current" : ""}`} key={track.id}>
                           <button
                             className="track-row-main"
-                            onClick={() => onPlayTrack(work, index)}
+                            onClick={() => onPlayTrack(work, sourceIndex)}
                             aria-label={`播放 ${track.title}`}
                           >
                             <span className="track-index">
@@ -254,6 +347,7 @@ export function DetailSheet({
                               <strong>{track.title}</strong>
                               <small>
                                 {track.format ? `${track.format.toUpperCase()} · ` : ""}
+                                {track.version ? `${track.version} · ` : ""}
                                 {formatShortDuration(track.duration)} · {formatBytes(track.size)}
                               </small>
                             </span>
@@ -290,7 +384,8 @@ export function DetailSheet({
                         </div>
                       );
                     })}
-                  </div>
+                    </div>
+                  </>
                 )}
                 {!tracksLoading && !trackError && !hasTracks && (
                   <p className="detail-tracks-note">
