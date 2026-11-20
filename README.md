@@ -281,7 +281,7 @@ src/             React 界面、组件与样式
 - **GitHub Actions 已跑通**：`guoougsj/yoru-snapshot` 的 `Sync asmr.one snapshot` 运行 `44508706141` 成功，并提交 `8d1a5e7`；raw 快照返回 `200`、500 件作品、抓取时间 `2026-11-19T10:46:22Z`。jsDelivr 分支地址有缓存，commit 固定地址 `@8d1a5e7` 已验证为 500 件。
 - **静态快照已预置**：点击“静态快照”会自动填入并保存 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`，无需手动粘贴；Node 模拟中 341ms 返回 500 件作品，状态为 `curated-snapshot` / `snapshot`。
 - **500 件作品实测**：`furina-relay` 分 25 页抓取 500 件作品耗时 14.9 秒，18 个原站标签；音轨接口约 1 秒返回 5 段、5 个字幕。Web 每页 20 张卡片，共 25 页；第 1 页显示 20 张，第 25 页显示 20 张且“下一页”禁用。
-- **内置种子已升级**：`data/live-seed.json` 500 件作品、500 个唯一 ID、18 个标签，文件 535,354 bytes；APK 也内置了构建时抓取的 500 件快照。
+- **内置种子已升级**：`data/live-seed.json` 500 件作品、500 个唯一 ID、18 个标签，文件 552,971 bytes；APK 也内置了构建时抓取的 500 件快照。
 - **预设路由实测**：Node 模拟中 `auto` 走 `furina-relay` 返回 500 件（14.9 秒）；`furina` 固定走 `furina-relay`；`bundled` 在 0ms 内返回 500 件内置快照，状态为 `curated-snapshot` / `bundled`；`custom` 走本地模拟 Worker 返回 24 件；`direct` 在无 VPN 网络下 6 秒内明确失败，不会偷偷回退到内置中继。
 - **自定义数据源实测**：App 内“测试连接”对 `https://asmr.furina.in/api` 返回「中继可用 · 本页 20 个作品」；本地快照 URL 返回「快照可用 · 500 个作品」；保存/清除地址后面板状态正确切换，控制台无错误。
 - **静态快照链路实测**：用本地 HTTP 服务托管 `data/live-seed.json`，`fetchNativeLibrary` 毫秒级返回 500 件作品，状态为 `curated-snapshot` / `snapshot`，提示“这是快照，不是实时抓取”。
@@ -301,7 +301,7 @@ src/             React 界面、组件与样式
 - **ASMR Daily 第二源（1.4.0）**：作品映射用真实 API 样本验证：2 件作品映射为 2 个 Work、5 个标签、DLsite 封面、`R15` 年龄标记和 `asmr-daily` 来源；`pagination`、Token 登录和 500 件抓取逻辑通过 mock API 验证。
 - ASMR Daily 未登录请求 `/api/works` 返回 `401 Unauthorized`；登录接口 `/api/auth/login` 可达。当前没有使用真实 ASMR Daily 账号进行在线验收，Token 登录后的完整作品列表需要在真机/你的账号下确认。
 - ASMR Daily 只提供作品元数据，没有发现公开音轨接口；播放会尝试复用同一 RJ 号的 asmr.one 音轨，失败时回退本地试听。
-- APK：`release/YORU-夜音-1.4.2.apk`，21,703,659 bytes，SHA-256 `F9B12B246F722F28E644CC3C0785B99FBA7CFC950FA534F62A969D9AAC347C4E`；versionCode 17 / versionName 1.4.2；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面、按作品/格式限定的播放列表、播放详情/字幕页面、顶栏个人资料/通知面板、7 个一键数据源预设与 ASMR Daily 第二作品源（账号/Token）。
+- APK：`release/YORU-夜音-1.4.2.apk`，21,703,547 bytes，SHA-256 `7116FA384C72F4982B8AF07F4C4B01A3EF8784E484791F5615BA19CFD1DCE157`；versionCode 17 / versionName 1.4.2；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面、按作品/格式限定的播放列表、播放详情/字幕页面、顶栏个人资料/通知面板、7 个一键数据源预设与 ASMR Daily 第二作品源（账号/Token）。
 - APK 静态校验：Manifest 中 `PlaybackService` 的 `foregroundServiceType=mediaPlayback`，已声明 `WAKE_LOCK`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`、`POST_NOTIFICATIONS`；`classes.dex` 含 `PlaybackService`、`BackgroundAudioPlugin`、`MediaSession`；打包 JS 含 `BackgroundAudio`、`AudioCache`、播放详情页/字幕解析、网络对冲和离线状态逻辑。
 - **本次已通过 `furina-relay` 成功同步 500 件真实作品**，并写入 `server/cache/live-works.json` 与 `data/live-seed.json`；不再使用旧的 12/24/200 件种子。
 
