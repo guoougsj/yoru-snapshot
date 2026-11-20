@@ -365,7 +365,7 @@ export function TopBar({
               <span className="profile-avatar">夜</span>
               <div className="profile-identity">
                 <strong>夜行听众</strong>
-                <small>YORU · 夜音 v1.4.1</small>
+                <small>YORU · 夜音 v1.4.2</small>
               </div>
               <button
                 className="popover-close"
@@ -383,7 +383,7 @@ export function TopBar({
               </div>
               <div>
                 <strong>{queueCount}</strong>
-                <span>队列</span>
+                <span>音轨</span>
               </div>
               <div>
                 <strong>{cacheCount}</strong>
@@ -540,7 +540,7 @@ export function TopBar({
               </button>
               <button onClick={() => runAndClose(onQueue)}>
                 <ListMusic size={15} />
-                播放队列
+                播放列表
                 <small>{queueCount}</small>
               </button>
               <button onClick={() => runAndClose(onExpand)}>

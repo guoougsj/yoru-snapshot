@@ -81,7 +81,7 @@ export function Sidebar({
           </button>
           <button className={activeView === "recent" ? "active" : ""} onClick={onRecent}>
             <Clock3 size={16} strokeWidth={1.7} />
-            <span>播放队列</span>
+            <span>播放列表</span>
           </button>
         </nav>
       </div>
@@ -186,7 +186,7 @@ export function Sidebar({
           <SlidersHorizontal size={12} />
           HIGH · 48kHz
         </span>
-        <span className="ver">v1.4.1</span>
+        <span className="ver">v1.4.2</span>
       </div>
     </aside>
   );

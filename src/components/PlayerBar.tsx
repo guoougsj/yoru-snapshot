@@ -190,7 +190,7 @@ export function PlayerBar({
         <button
           className={`queue-button ${queueOpen ? "active" : ""}`}
           onClick={onQueue}
-          aria-label="播放队列"
+          aria-label="播放列表"
         >
           <ListMusic size={17} strokeWidth={1.7} />
           <span>{queueCount}</span>

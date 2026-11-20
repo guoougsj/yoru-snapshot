@@ -189,12 +189,20 @@ public class PlaybackService extends Service {
         volume = Math.max(0f, Math.min(1f, intent.getFloatExtra("volume", volume)));
 
         if (requestedQueueId == null) requestedQueueId = "";
-        boolean sameQueue = requestedQueueId.equals(queueId) && player != null && queue != null;
+        boolean sameQueue =
+            requestedQueueId.equals(queueId)
+                && player != null
+                && queue != null
+                && sameQueueTracks(tracksJson);
 
         if (sameQueue) {
             if (player != null) {
                 player.setLooping(repeat);
                 player.setVolume(volume, volume);
+            }
+            if (requestedIndex != index) {
+                playIndex(requestedIndex);
+                return;
             }
             resume();
             return;
@@ -212,6 +220,24 @@ public class PlaybackService extends Service {
             return;
         }
         playIndex(requestedIndex);
+    }
+
+    private boolean sameQueueTracks(String tracksJson) {
+        if (queue == null || tracksJson == null) return false;
+        try {
+            JSONArray incoming = new JSONArray(tracksJson);
+            if (incoming.length() != queue.length()) return false;
+            for (int i = 0; i < queue.length(); i++) {
+                JSONObject active = queue.optJSONObject(i);
+                JSONObject next = incoming.optJSONObject(i);
+                if (active == null || next == null) return false;
+                if (!active.optString("id").equals(next.optString("id"))) return false;
+                if (!active.optString("url").equals(next.optString("url"))) return false;
+            }
+            return true;
+        } catch (Exception error) {
+            return false;
+        }
     }
 
     private void playIndex(int requestedIndex) {

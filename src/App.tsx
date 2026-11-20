@@ -13,6 +13,7 @@ import {
 } from "./lib/asmrDaily";
 import { fetchNativeLibrary, isNativeApp } from "./lib/nativeSource";
 import { presetSnapshot, readDataSource } from "./lib/netSettings";
+import { originalCoverUrl } from "./lib/covers";
 import { fetchTracksForWork, selectPlaybackTracks } from "./lib/tracks";
 import {
   cacheKey,
@@ -130,6 +131,13 @@ interface PlaybackState {
   trackIndex?: number;
 }
 
+interface PlaybackScope {
+  workId: string;
+  tracks: Track[];
+  label: string;
+  singleWork: boolean;
+}
+
 function readPlaybackState(): PlaybackState {
   try {
     const raw = JSON.parse(
@@ -200,6 +208,7 @@ function App() {
   const [trackLoading, setTrackLoading] = useState<Record<string, boolean>>({});
   const [trackErrors, setTrackErrors] = useState<Record<string, string>>({});
   const [trackIndex, setTrackIndex] = useState(0);
+  const [playScope, setPlayScope] = useState<PlaybackScope | null>(null);
   const [fallbackPreview, setFallbackPreview] = useState(false);
   const [cacheIndex, setCacheIndex] = useState<Record<string, CachedTrack>>(() =>
     readCacheIndex(),
@@ -222,6 +231,8 @@ function App() {
   const toastId = useRef(0);
   const tracksRef = useRef<Record<string, Track[]>>({});
   const loadingRef = useRef(new Set<string>());
+  const currentTracksRef = useRef<Track[]>([]);
+  const playScopeRef = useRef<PlaybackScope | null>(null);
   const trackIndexRef = useRef(0);
   const pendingTrackIndexRef = useRef<number | null>(null);
   const initialTrackIndexRef = useRef<number | null>(
@@ -235,7 +246,6 @@ function App() {
   repeatRef.current = repeat;
 
   tracksRef.current = workTracks;
-  trackIndexRef.current = trackIndex;
   fallbackPreviewRef.current = fallbackPreview;
 
   const currentWork = useMemo(
@@ -272,8 +282,18 @@ function App() {
     () => Object.values(cacheIndex).reduce((sum, entry) => sum + (entry.size || 0), 0),
     [cacheIndex],
   );
-  const currentTracks = workTracks[currentWork?.id ?? ""] ?? [];
-  const currentTrack = currentTracks[trackIndex] ?? null;
+  const fullTracks = workTracks[currentWork?.id ?? ""] ?? [];
+  const recommendedTracks = useMemo(
+    () => selectPlaybackTracks(fullTracks),
+    [fullTracks],
+  );
+  const currentTracks =
+    playScope?.workId === currentWork?.id ? playScope.tracks : recommendedTracks;
+  const safeTrackIndex =
+    currentTracks.length > 0
+      ? Math.max(0, Math.min(trackIndex, currentTracks.length - 1))
+      : 0;
+  const currentTrack = currentTracks[safeTrackIndex] ?? null;
   const currentCache =
     currentWork && currentTrack
       ? cacheIndex[cacheKey(currentWork.id, currentTrack.id)]
@@ -346,6 +366,9 @@ function App() {
 
   currentWorkRef.current = currentWork;
   currentTrackRef.current = currentTrack;
+  currentTracksRef.current = currentTracks;
+  playScopeRef.current = playScope;
+  trackIndexRef.current = safeTrackIndex;
 
   const pushToast = useCallback((message: string, tone: Toast["tone"] = "neutral") => {
     const id = ++toastId.current;
@@ -418,6 +441,9 @@ function App() {
     const restore = initialTrackIndexRef.current;
     pendingTrackIndexRef.current = null;
     initialTrackIndexRef.current = null;
+    setPlayScope((previous) =>
+      previous && previous.workId === currentWork?.id ? previous : null,
+    );
     setTrackIndex(pending ?? restore ?? 0);
     setFallbackPreview(false);
     setCurrentTime(0);
@@ -426,8 +452,26 @@ function App() {
   }, [currentWork?.id, ensureTracks]);
 
   useEffect(() => {
+    if (trackIndex <= currentTracks.length - 1) return;
+    setTrackIndex(Math.max(0, currentTracks.length - 1));
+  }, [currentTracks.length, trackIndex]);
+
+  useEffect(() => {
     if (detailId) void ensureTracks(detailId);
   }, [detailId, ensureTracks]);
+
+  useEffect(() => {
+    if (!detailWork) return;
+    const cover = originalCoverUrl(detailWork);
+    if (!cover) return;
+    const image = new Image();
+    image.decoding = "async";
+    image.referrerPolicy = "no-referrer";
+    image.src = cover;
+    return () => {
+      image.src = "";
+    };
+  }, [detailWork]);
 
   useEffect(() => {
     const goOnline = () => setOnline(true);
@@ -530,11 +574,11 @@ function App() {
     void playNative({
       queueId: currentWork.id,
       tracks: nativeTracks,
-      index: trackIndex,
+      index: safeTrackIndex,
       repeat,
       volume,
     }).catch(() => undefined);
-  }, [nativePlayback, isPlaying, currentWork.id, nativeTracks]);
+  }, [nativePlayback, isPlaying, currentWork.id, nativeTracks, safeTrackIndex]);
 
   useEffect(() => {
     if (!isBackgroundAudioSupported() || !nativePlayback || isPlaying) return;
@@ -592,7 +636,7 @@ function App() {
       setCurrentTime(0);
       if (!repeatRef.current) {
         setIsPlaying(false);
-        advanceRef.current(1);
+        if (!playScopeRef.current?.singleWork) advanceRef.current(1);
       }
     });
 
@@ -770,8 +814,7 @@ function App() {
         void audio.play();
         return;
       }
-      const workId = currentWorkRef.current?.id ?? "";
-      const tracks = tracksRef.current[workId] ?? [];
+      const tracks = currentTracksRef.current;
       const index = trackIndexRef.current;
       if (tracks.length && index < tracks.length - 1) {
         setTrackIndex(index + 1);
@@ -779,6 +822,10 @@ function App() {
         return;
       }
       setCurrentTime(0);
+      if (playScopeRef.current?.singleWork) {
+        setIsPlaying(false);
+        return;
+      }
       advanceRef.current(1);
     };
     const onError = () => {
@@ -920,6 +967,7 @@ function App() {
       return;
     }
     if (contextWorks.length) setQueueIds(contextWorks.map((item) => item.id));
+    setPlayScope(null);
     pendingTrackIndexRef.current = 0;
     setTrackIndex(0);
     setFallbackPreview(false);
@@ -928,14 +976,36 @@ function App() {
     setIsPlaying(true);
   }
 
-  function playTrackForWork(work: Work, index: number) {
-    pendingTrackIndexRef.current = index;
+  function playTrackList(
+    work: Work,
+    tracks: Track[],
+    startIndex: number,
+    label: string,
+    singleWork = true,
+  ) {
+    const list = tracks.length
+      ? tracks
+      : selectPlaybackTracks(tracksRef.current[work.id] ?? []);
+    if (!list.length) {
+      startWork(work);
+      return;
+    }
+
+    const index = Math.max(0, Math.min(startIndex, list.length - 1));
+    const sameWork = work.id === currentId;
+    const sameList =
+      sameWork &&
+      currentTracks.length === list.length &&
+      currentTracks.every((track, position) => track.id === list[position]?.id);
+
+    if (!sameWork) pendingTrackIndexRef.current = index;
+    setPlayScope({ workId: work.id, tracks: list, label, singleWork });
     setTrackIndex(index);
     setFallbackPreview(false);
     setCurrentTime(0);
-    if (work.id !== currentId) {
+    if (!sameWork) {
       setCurrentId(work.id);
-    } else if (isBackgroundAudioSupported() && nativeTracks.length) {
+    } else if (sameList && isBackgroundAudioSupported()) {
       void selectNative(index);
     }
     setIsPlaying(true);
@@ -951,32 +1021,38 @@ function App() {
   }
 
   function playNextTrack() {
-    if (!currentTracks.length) {
-      advance(1);
-      return;
-    }
-    if (trackIndex < currentTracks.length - 1) {
+    if (!currentTracks.length) return;
+    if (safeTrackIndex < currentTracks.length - 1) {
       if (nativePlayback) {
         void nextNative();
       } else {
-        setTrackIndex(trackIndex + 1);
+        setTrackIndex(safeTrackIndex + 1);
         setCurrentTime(0);
         setIsPlaying(true);
       }
+      return;
+    }
+    if (playScopeRef.current?.singleWork) {
+      setIsPlaying(false);
+      setCurrentTime(0);
       return;
     }
     advance(1);
   }
 
   function playPrevTrack() {
-    if (currentTracks.length && trackIndex > 0) {
+    if (currentTracks.length && safeTrackIndex > 0) {
       if (nativePlayback) {
         void previousNative();
       } else {
-        setTrackIndex(trackIndex - 1);
+        setTrackIndex(safeTrackIndex - 1);
         setCurrentTime(0);
         setIsPlaying(true);
       }
+      return;
+    }
+    if (playScopeRef.current?.singleWork) {
+      seekToTime(0);
       return;
     }
     advance(-1);
@@ -986,6 +1062,7 @@ function App() {
     const first = playlist.workIds.find((id) => library.works.some((work) => work.id === id));
     if (!first) return;
     setQueueIds(playlist.workIds);
+    setPlayScope(null);
     pendingTrackIndexRef.current = 0;
     setTrackIndex(0);
     setFallbackPreview(false);
@@ -1000,6 +1077,7 @@ function App() {
     if (!visibleWorks.length) return;
     const shuffled = [...visibleWorks].sort(() => Math.random() - 0.5);
     setQueueIds(shuffled.map((work) => work.id));
+    setPlayScope(null);
     pendingTrackIndexRef.current = 0;
     setTrackIndex(0);
     setFallbackPreview(false);
@@ -1015,23 +1093,6 @@ function App() {
       isFavorite ? prev.filter((item) => item !== id) : [...prev, id],
     );
     pushToast(isFavorite ? "已从收藏中移除" : "已收藏到你的夜间书架", isFavorite ? "neutral" : "success");
-  }
-
-  function addToQueue(work: Work) {
-    if (queueIds.includes(work.id)) {
-      pushToast("这段声音已经在队列里了");
-      return;
-    }
-    setQueueIds((prev) => [...prev, work.id]);
-    pushToast(`已加入队列 · ${work.title}`, "success");
-  }
-
-  function removeFromQueue(id: string) {
-    if (id === currentId) {
-      pushToast("正在播放的作品不能从队列移除");
-      return;
-    }
-    setQueueIds((prev) => prev.filter((queueId) => queueId !== id));
   }
 
   function confirmAdult() {
@@ -1422,7 +1483,7 @@ function App() {
           searchRef={searchRef}
           onSync={syncLibrary}
           favoritesCount={favorites.length}
-          queueCount={queueIds.length}
+          queueCount={currentTracks.length}
           cacheCount={cacheCount}
           cacheSize={cacheSize}
           onFavorites={goFavorites}
@@ -1692,7 +1753,7 @@ function App() {
       <PlayerBar
         work={currentWork}
         track={currentTrack}
-        trackIndex={trackIndex}
+        trackIndex={safeTrackIndex}
         trackCount={currentTracks.length}
         isPreview={isPreview}
         isPlaying={isPlaying}
@@ -1701,7 +1762,7 @@ function App() {
         volume={volume}
         repeat={repeat}
         favorite={favoritesSet.has(currentWork.id)}
-        queueCount={queueIds.length}
+        queueCount={currentTracks.length}
         queueOpen={queueOpen}
         onToggle={() => {
           const end = duration || (isPreview ? 20 : 0);
@@ -1736,7 +1797,7 @@ function App() {
         open={nowPlayingOpen}
         work={currentWork}
         track={currentTrack}
-        trackIndex={trackIndex}
+        trackIndex={safeTrackIndex}
         trackCount={currentTracks.length}
         isPlaying={isPlaying}
         currentTime={currentTime}
@@ -1769,18 +1830,21 @@ function App() {
       <QueueDrawer
         open={queueOpen}
         current={currentWork}
-        queue={queueWorks}
+        tracks={currentTracks}
+        currentIndex={safeTrackIndex}
+        label={playScope?.label ?? "推荐音轨"}
         isPlaying={isPlaying}
         onClose={() => setQueueOpen(false)}
-        onPlay={(work) => {
-          pendingTrackIndexRef.current = 0;
-          setTrackIndex(0);
-          setFallbackPreview(false);
-          setCurrentId(work.id);
-          setIsPlaying(true);
+        onPlayTrack={(index) => {
+          playTrackList(
+            currentWork,
+            currentTracks,
+            index,
+            playScope?.label ?? "推荐音轨",
+            playScope?.singleWork ?? false,
+          );
         }}
         onToggle={() => setIsPlaying((playing) => !playing)}
-        onRemove={removeFromQueue}
       />
 
       <DetailSheet
@@ -1791,15 +1855,15 @@ function App() {
         tracks={detailWork ? workTracks[detailWork.id] : undefined}
         tracksLoading={detailWork ? Boolean(trackLoading[detailWork.id]) : false}
         trackError={detailWork ? trackErrors[detailWork.id] : undefined}
-        currentTrackIndex={detailWork?.id === currentId ? trackIndex : -1}
+        currentTrackId={detailWork?.id === currentId ? currentTrack?.id : undefined}
+        playlistLabel={detailWork?.id === currentId ? playScope?.label : undefined}
         cacheIndex={cacheIndex}
         trackCacheProgress={trackCacheProgress}
         workCacheProgress={detailWork ? workCacheProgress[detailWork.id] : undefined}
         onClose={() => setDetailId(null)}
         onPlay={(work) => startWork(work, library.works)}
         onFavorite={toggleFavorite}
-        onAddQueue={addToQueue}
-        onPlayTrack={playTrackForWork}
+        onPlayTracks={playTrackList}
         onCacheTrack={handleCacheTrack}
         onCacheWork={handleCacheWork}
         onRemoveCache={handleRemoveCache}

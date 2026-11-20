@@ -44,7 +44,7 @@ npm run sync       # 抓取最新作品与原站标签，写入实时缓存
 
 ## Android APK
 
-安装包：`release/YORU-夜音-1.4.1.apk`（Android 7.0+，minSdk 24 / targetSdk 36，包名 `com.yoru.asmr`）。
+安装包：`release/YORU-夜音-1.4.2.apk`（Android 7.0+，minSdk 24 / targetSdk 36，包名 `com.yoru.asmr`）。
 
 ```bash
 npm.cmd run android:build     # 构建 dist、同步到 android/、产出 debug APK
@@ -137,7 +137,7 @@ Token 失效时源切换会明确提示，并继续使用上次缓存。
 ### 顶栏个人资料与通知（1.2.2）
 
 - 右上角头像和通知按钮不再是无响应的装饰，均可点开：
-  - **个人资料**：显示收藏数、队列数、缓存段数、缓存总大小；可直接进入“我的收藏”“播放队列”“播放详情与字幕”，或同步 asmr.one；支持一键清除全部离线缓存（有确认）。
+  - **个人资料**：显示收藏数、当前作品音轨数、缓存段数、缓存总大小；可直接进入“我的收藏”“播放列表”“播放详情与字幕”，或同步 asmr.one；支持一键清除全部离线缓存（有确认）。
   - **数据通知**：显示当前是实时数据还是本地快照、同步时间与传输通道、离线缓存状态，并提供“立即同步 asmr.one”。
 - 两个面板互斥显示；点击面板外部或按 Esc 关闭；移动端自动收窄到屏幕宽度。
 - 小屏（≤560px）下隐藏通知面板，保留个人资料面板，避免顶栏过挤。
@@ -153,6 +153,18 @@ Token 失效时源切换会明确提示，并继续使用上次缓存。
 - “缓存全部”只缓存每个逻辑段落的优选版本（优先完整版、再优先 MP3），不会把几 GB 的 WAV/FLAC 全部排队缓存
 - 实测 `RJ01712782`：32 个文件（16 MP3 + 16 WAV）；MP3 第一段 56:21 / 51.6 MB，WAV 第一段 1238.5 MB；选项卡切换后各显示 16 行
 
+### 播放列表只包含当前作品（1.4.2）
+
+- 播放列表不再显示 500 件作品，而是显示**当前作品、当前筛选条件下**的全部音轨
+- 在作品详情中选定格式/版本后，点击“播放当前列表”或任意一行音轨：
+  - 桌面播放器、原生后台播放队列、播放列表面板都只包含这批音轨
+  - 例如选择 `MP3` 后，播放列表为 16 段 MP3；切换 `WAV` 再播放，播放列表变为 16 段 WAV
+  - 播放列表面板会显示 `MP3 · 全部版本`、`WAV · 全部版本` 等当前范围，并高亮正在播放的一段
+- 从作品详情进入播放列表后，播完最后一段会停下，不会自动跳到作品集里的下一件作品
+- 顶栏、播放器和个人资料中的计数改为当前作品音轨数，不再是作品总数
+- 打开作品详情时立即使用原站封面（`asmr.furina.in/api/cover/<RJ>.jpg?type=main`），加载失败才回退 YORU 程序化封面；封面会在打开详情前预加载
+- 详情页默认优先 `MP3`，存在 `完整版` 时优先完整版，避免默认把 MP3/WAV 同一段重复排进播放列表
+
 ### 播放详情页与滚动字幕（1.2.1 / 1.2.9）
 
 - 播放器右侧新增展开按钮，打开全屏播放详情页：大封面、当前音轨、播放进度、上一段/下一段、循环、收藏和音量。
@@ -167,7 +179,7 @@ Token 失效时源切换会明确提示，并继续使用上次缓存。
   - SRT/VTT 解析标准时间轴；LRC 解析 `[mm:ss.xx]` 标签；TXT 按行均匀分配到当前音轨时长。
   - 导入文件按“作品 + 音轨”保存在 `localStorage`，下次播放同一段仍可用；可一键清除导入内容。
   - 文件上限 512 KB，导入失败会明确提示。
-- 播放详情页打开时，Android 返回键优先收起该页面，再处理详情抽屉/队列/首页。
+- 播放详情页打开时，Android 返回键优先收起该页面，再处理详情抽屉/播放列表/首页。
 
 ### 字幕数据实测（纠正之前的说法）
 
@@ -199,7 +211,7 @@ Token 失效时源切换会明确提示，并继续使用上次缓存。
 - 启动同步最多 25 秒，手动同步最多 45 秒；单个音轨请求最多 25 秒，并带内存/本地元数据缓存。
 - 同一作品/同一次同步的并发请求会去重，避免重复打中继。
 - 断网时跳过请求并显示“当前处于离线状态，正在使用本地缓存”；恢复联网后自动重试一次同步。
-- 播放状态持久化：上次作品、队列、音量、单曲循环、音轨序号会在下次启动时恢复。
+- 播放状态持久化：上次作品、音量、单曲循环、音轨序号会在下次启动时恢复。
 - Android 返回键：先关闭作品详情，再关闭播放队列，再回到首页，最后才退出应用。
 - 播放时保持屏幕常亮（`FLAG_KEEP_SCREEN_ON`），暂停/退出时清除。
 - 下载进度实时回传（每 ~400ms），缓存按钮显示百分比；整部作品缓存仍会先确认大小。
@@ -240,7 +252,7 @@ npx capacitor-assets generate --android --iconBackgroundColor '#0c0d0f' --iconBa
 ## 安装 APK
 
 ```bash
-adb install -r release/YORU-夜音-1.4.1.apk
+adb install -r release/YORU-夜音-1.4.2.apk
 ```
 
 也可以把 APK 复制到手机后手动安装（需允许“安装未知来源应用”）。
@@ -262,7 +274,7 @@ src/             React 界面、组件与样式
 
 ## 已验证
 
-- `npm run build` 通过（TypeScript + Vite，v1.4.1）。
+- `npm run build` 通过（TypeScript + Vite，v1.4.2）。
 - **新中继链路实测**：`furina-relay` 分 25 页抓取 500 件作品耗时 14.9 秒，每页 20 件；`RJ01683351` 的 5 段音轨在约 1 秒内返回，5/5 带官方 VTT 字幕。`/api/works` 返回 500 件作品、18 个原站标签、含成人内容。
 - **服务端快路径实测**：重启服务后 `POST /api/sync` 21.18 秒返回 500 件；`GET /api/works` 返回 500 件、18 个标签；`GET /api/tracks/1683351` 命中缓存 11ms 返回 5 段音轨、5 个字幕 URL，传输标记为 `furina-relay`。
 - **一键预设实测**：面板列出 7 个预设；点击“内置中继 / 仅直连 / 公共中继 / 自动选择 / 内置快照 / 静态快照”会立即写入 `yoru.data-source-v2` 并标记当前项；点击“自建中继”会预填内置地址。重新打开面板后选择保持，控制台无错误。
@@ -276,7 +288,8 @@ src/             React 界面、组件与样式
 - 原站标签聚合已在 Web 界面实际显示（双声道立体声/人头麦、掏耳、治愈、ASMR、萌、低语、系列作品等）。
 - **真实完整音轨播放已验证**：`/api/tracks/RJ01712782` 通过 `allorigins-raw` 返回 16 段 mp3；播放器成功加载官方 `raw.kiko-play-niptan.one` 音频（第一段 56:21，51.6 MB），时间轴从 `0:00/56:21` 推进到 `0:01/56:21`，无媒体错误。
 - **真实音轨切换已验证**：点击第 2 段后播放器显示 `第 2/16 段`，音频源切换到第二段官方 CDN URL，`FULL TRACK` 状态正确。
-- 音轨去重逻辑通过真实数据与合成数据测试：原始 32 个格式条目归并为 16 个 mp3（约 850 MB），避免缓存 1 GB 的 wav；同名 mp3/wav 只保留 mp3。
+- **格式/版本选项卡与播放列表范围已验证（1.4.2）**：`RJ01712782` 详情页默认选中 MP3，显示 16 行；点击“播放当前列表”后播放列表为 16 段 MP3，来源标记 `MP3 · 全部版本`；切换 WAV 后显示 16 行、第一段 60:42 / 1000.3 MB，重新播放后播放列表变为 16 段 WAV，点击第 3 段会立即把当前项切到 `2025.10リピート用こりす…`，控制台无错误。
+- 音轨去重逻辑通过真实数据与合成数据测试：整部作品缓存仍按逻辑段落优选（完整版 > 正篇 > 体验版 > 试听版，同版本优先 MP3），但详情页保留全部 MP3/WAV/FLAC/MP4 文件供手动选择。
 - **对冲网络测试**：模拟直连阻断、AllOrigins `/raw` 延迟 60ms、`cors.lol` 429、`allorigins-get` 429；音轨请求在 602ms 内完成，作品列表 24 件在 1169ms 内完成，标签与成人标记正确。
 - **播放详情页/滚动字幕已验证**：展开后显示大封面、当前音轨、80 行演示字幕和“演示字幕 · 非原作品台本”；切换到 0:06 时高亮第二行；导入 2 行测试 SRT 后显示“已导入 · test.srt”，清除后恢复演示字幕；全过程无控制台错误。
 - Web 端已验证离线横幅、恢复联网、Android 返回事件（关闭详情）、播放状态持久化；浏览器控制台无错误。
@@ -288,7 +301,7 @@ src/             React 界面、组件与样式
 - **ASMR Daily 第二源（1.4.0）**：作品映射用真实 API 样本验证：2 件作品映射为 2 个 Work、5 个标签、DLsite 封面、`R15` 年龄标记和 `asmr-daily` 来源；`pagination`、Token 登录和 500 件抓取逻辑通过 mock API 验证。
 - ASMR Daily 未登录请求 `/api/works` 返回 `401 Unauthorized`；登录接口 `/api/auth/login` 可达。当前没有使用真实 ASMR Daily 账号进行在线验收，Token 登录后的完整作品列表需要在真机/你的账号下确认。
 - ASMR Daily 只提供作品元数据，没有发现公开音轨接口；播放会尝试复用同一 RJ 号的 asmr.one 音轨，失败时回退本地试听。
-- APK：`release/YORU-夜音-1.4.1.apk`，21,702,479 bytes，SHA-256 `0704C4094C33364E84D2ACDD0500628B4D08D0EDEDADC18F07FE630F0E8FDA1C`；versionCode 16 / versionName 1.4.1；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面背景、播放详情/字幕页面、顶栏个人资料/通知面板、7 个一键数据源预设与 ASMR Daily 第二作品源（账号/Token）。
+- APK：`release/YORU-夜音-1.4.2.apk`，21,703,659 bytes，SHA-256 `F9B12B246F722F28E644CC3C0785B99FBA7CFC950FA534F62A969D9AAC347C4E`；versionCode 17 / versionName 1.4.2；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面、按作品/格式限定的播放列表、播放详情/字幕页面、顶栏个人资料/通知面板、7 个一键数据源预设与 ASMR Daily 第二作品源（账号/Token）。
 - APK 静态校验：Manifest 中 `PlaybackService` 的 `foregroundServiceType=mediaPlayback`，已声明 `WAKE_LOCK`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`、`POST_NOTIFICATIONS`；`classes.dex` 含 `PlaybackService`、`BackgroundAudioPlugin`、`MediaSession`；打包 JS 含 `BackgroundAudio`、`AudioCache`、播放详情页/字幕解析、网络对冲和离线状态逻辑。
 - **本次已通过 `furina-relay` 成功同步 500 件真实作品**，并写入 `server/cache/live-works.json` 与 `data/live-seed.json`；不再使用旧的 12/24/200 件种子。
 

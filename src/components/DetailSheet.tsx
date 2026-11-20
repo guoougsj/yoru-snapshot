@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   Check,
@@ -11,13 +11,13 @@ import {
   Mic2,
   Pause,
   Play,
-  Plus,
   Star,
   Trash2,
   X,
 } from "lucide-react";
 import type { CachedTrack } from "../lib/audioCache";
 import { cacheKey } from "../lib/audioCache";
+import { originalCoverUrl } from "../lib/covers";
 import { formatLongDuration, formatShortDuration } from "../lib/format";
 import { ASMR_DAILY, resourceWorkUrl } from "../lib/resources";
 import type { Track, Work } from "../types";
@@ -31,15 +31,20 @@ interface DetailSheetProps {
   tracks?: Track[];
   tracksLoading?: boolean;
   trackError?: string;
-  currentTrackIndex?: number;
+  currentTrackId?: string;
+  playlistLabel?: string;
   cacheIndex: Record<string, CachedTrack>;
   trackCacheProgress?: Record<string, number>;
   workCacheProgress?: { done: number; total: number; title?: string };
   onClose: () => void;
   onPlay: (work: Work) => void;
   onFavorite: (id: string) => void;
-  onAddQueue: (work: Work) => void;
-  onPlayTrack: (work: Work, index: number) => void;
+  onPlayTracks: (
+    work: Work,
+    tracks: Track[],
+    startIndex: number,
+    label: string,
+  ) => void;
   onCacheTrack: (work: Work, track: Track) => void;
   onCacheWork: (work: Work) => void;
   onRemoveCache: (work: Work) => void;
@@ -59,15 +64,15 @@ export function DetailSheet({
   tracks,
   tracksLoading,
   trackError,
-  currentTrackIndex = -1,
+  currentTrackId,
+  playlistLabel,
   cacheIndex,
   trackCacheProgress,
   workCacheProgress,
   onClose,
   onPlay,
   onFavorite,
-  onAddQueue,
-  onPlayTrack,
+  onPlayTracks,
   onCacheTrack,
   onCacheWork,
   onRemoveCache,
@@ -79,11 +84,29 @@ export function DetailSheet({
   const hasTracks = Boolean(tracks?.length);
   const [formatFilter, setFormatFilter] = useState("all");
   const [versionFilter, setVersionFilter] = useState("all");
+  const filtersInitialisedFor = useRef("");
 
   useEffect(() => {
     setFormatFilter("all");
     setVersionFilter("all");
+    filtersInitialisedFor.current = "";
   }, [work?.id]);
+
+  useEffect(() => {
+    if (!work || !tracks?.length) return;
+    if (filtersInitialisedFor.current === work.id) return;
+    filtersInitialisedFor.current = work.id;
+
+    const formats = [...new Set(tracks.map((track) => track.format || "other"))];
+    if (formats.length > 1) {
+      setFormatFilter(formats.includes("mp3") ? "mp3" : formats[0]);
+    }
+
+    const versions = [...new Set(tracks.map((track) => track.version || "正篇"))];
+    if (versions.length > 1 && versions.includes("完整版")) {
+      setVersionFilter("完整版");
+    }
+  }, [work, tracks]);
 
   const formatTabs = useMemo(() => {
     const order = ["mp3", "m4a", "aac", "ogg", "opus", "wav", "flac", "mp4", "mkv", "webm"];
@@ -109,6 +132,21 @@ export function DetailSheet({
     [tracks, formatFilter, versionFilter],
   );
 
+  const filterLabel = useMemo(
+    () =>
+      `${formatFilter === "all" ? "全部格式" : formatFilter.toUpperCase()} · ${
+        versionFilter === "all" ? "全部版本" : versionFilter
+      }`,
+    [formatFilter, versionFilter],
+  );
+
+  const activeInFiltered = Boolean(
+    currentTrackId && filteredTracks.some((track) => track.id === currentTrackId),
+  );
+  const selectedIsActive =
+    isActive && activeInFiltered && playlistLabel === filterLabel;
+  const coverUrl = work ? originalCoverUrl(work) : undefined;
+
   return (
     <>
       <button
@@ -130,12 +168,13 @@ export function DetailSheet({
             <div className="detail-scroll">
               <div className="detail-art">
                 <CoverArt art={work.art} title={work.title} />
-                {work.coverUrl && (
+                {coverUrl && (
                   <img
+                    key={work.id}
                     className="detail-art-image"
-                    src={work.coverUrl}
-                    alt=""
-                    loading="lazy"
+                    src={coverUrl}
+                    alt={`${work.title} 封面`}
+                    loading="eager"
                     decoding="async"
                     referrerPolicy="no-referrer"
                     onError={(event) => event.currentTarget.remove()}
@@ -200,16 +239,31 @@ export function DetailSheet({
               </div>
 
               <div className="detail-actions">
-                <button className="detail-play" onClick={() => onPlay(work)}>
-                  {isActive && isPlaying ? (
+                <button
+                  className="detail-play"
+                  onClick={() => {
+                    if (selectedIsActive) {
+                      onPlay(work);
+                      return;
+                    }
+                    if (hasTracks) {
+                      onPlayTracks(work, filteredTracks, 0, filterLabel);
+                      return;
+                    }
+                    onPlay(work);
+                  }}
+                >
+                  {selectedIsActive && isPlaying ? (
                     <Pause size={16} fill="currentColor" />
                   ) : (
                     <Play size={16} fill="currentColor" />
                   )}
-                  {isActive && isPlaying
-                    ? "暂停"
+                  {selectedIsActive
+                    ? isPlaying
+                      ? "暂停"
+                      : "继续播放"
                     : hasTracks
-                      ? "播放完整音轨"
+                      ? `播放当前列表 · ${filteredTracks.length}`
                       : "播放本地试听"}
                 </button>
                 <button
@@ -218,14 +272,6 @@ export function DetailSheet({
                   aria-label={favorite ? "取消收藏" : "收藏"}
                 >
                   <Heart size={17} fill={favorite ? "currentColor" : "none"} />
-                </button>
-                <button
-                  className="detail-icon-button"
-                  onClick={() => onAddQueue(work)}
-                  aria-label="加入队列"
-                  title="加入队列"
-                >
-                  <Plus size={18} />
                 </button>
               </div>
 
@@ -320,16 +366,17 @@ export function DetailSheet({
                     )}
                     <div className="track-list">
                     {filteredTracks.map((track, index) => {
-                      const sourceIndex = tracks!.indexOf(track);
                       const key = cacheKey(work.id, track.id);
                       const cached = Boolean(cacheIndex[key]);
                       const progress = trackCacheProgress?.[key];
-                      const active = currentTrackIndex === sourceIndex;
+                      const active = currentTrackId === track.id;
                       return (
                         <div className={`track-row ${active ? "is-current" : ""}`} key={track.id}>
                           <button
                             className="track-row-main"
-                            onClick={() => onPlayTrack(work, sourceIndex)}
+                            onClick={() =>
+                              onPlayTracks(work, filteredTracks, index, filterLabel)
+                            }
                             aria-label={`播放 ${track.title}`}
                           >
                             <span className="track-index">
