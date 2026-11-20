@@ -301,7 +301,7 @@ src/             React 界面、组件与样式
 - **ASMR Daily 第二源（1.4.0）**：作品映射用真实 API 样本验证：2 件作品映射为 2 个 Work、5 个标签、DLsite 封面、`R15` 年龄标记和 `asmr-daily` 来源；`pagination`、Token 登录和 500 件抓取逻辑通过 mock API 验证。
 - ASMR Daily 未登录请求 `/api/works` 返回 `401 Unauthorized`；登录接口 `/api/auth/login` 可达。当前没有使用真实 ASMR Daily 账号进行在线验收，Token 登录后的完整作品列表需要在真机/你的账号下确认。
 - ASMR Daily 只提供作品元数据，没有发现公开音轨接口；播放会尝试复用同一 RJ 号的 asmr.one 音轨，失败时回退本地试听。
-- APK：`release/YORU-夜音-1.4.2.apk`，21,703,547 bytes，SHA-256 `7116FA384C72F4982B8AF07F4C4B01A3EF8784E484791F5615BA19CFD1DCE157`；versionCode 17 / versionName 1.4.2；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面、按作品/格式限定的播放列表、播放详情/字幕页面、顶栏个人资料/通知面板、7 个一键数据源预设与 ASMR Daily 第二作品源（账号/Token）。
+- APK：`release/YORU-夜音-1.4.2.apk`，21,703,387 bytes，SHA-256 `BCCDA10D03B3F1ADBF5DF3C7338040D129956B42927739D7DD535CA581D3B2DC`；versionCode 17 / versionName 1.4.2；APK Signature Scheme v2 校验通过，zipalign 通过；包含 500 件作品种子、12 段本地 fallback 音频、`AudioCachePlugin`、`PlaybackService`、`BackgroundAudioPlugin`、官方字幕解析、原站封面、按作品/格式限定的播放列表、播放详情/字幕页面、顶栏个人资料/通知面板、7 个一键数据源预设与 ASMR Daily 第二作品源（账号/Token）。
 - APK 静态校验：Manifest 中 `PlaybackService` 的 `foregroundServiceType=mediaPlayback`，已声明 `WAKE_LOCK`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`、`POST_NOTIFICATIONS`；`classes.dex` 含 `PlaybackService`、`BackgroundAudioPlugin`、`MediaSession`；打包 JS 含 `BackgroundAudio`、`AudioCache`、播放详情页/字幕解析、网络对冲和离线状态逻辑。
 - **本次已通过 `furina-relay` 成功同步 500 件真实作品**，并写入 `server/cache/live-works.json` 与 `data/live-seed.json`；不再使用旧的 12/24/200 件种子。
 
