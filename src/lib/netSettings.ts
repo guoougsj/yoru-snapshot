@@ -38,6 +38,8 @@ export interface SourcePreset {
 
 export const FURINA_RELAY = "https://asmr.furina.in/api";
 export const DEFAULT_SNAPSHOT_URL =
+  "https://github.com/guoougsj/yoru-snapshot/releases/download/snapshot-latest/live-seed.json";
+export const GIT_SEED_SNAPSHOT_URL =
   "https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json";
 
 export const SOURCE_PRESETS: SourcePreset[] = [

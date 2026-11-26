@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, RefreshCw, Shuffle, Sparkles } from "lucide-react";
 import liveSeedRaw from "../data/live-seed.json";
 import {
@@ -49,9 +49,6 @@ import { Hero } from "./components/Hero";
 import { PlaylistCard } from "./components/PlaylistCard";
 import { WorkCard } from "./components/WorkCard";
 import { PlayerBar } from "./components/PlayerBar";
-import { QueueDrawer } from "./components/QueueDrawer";
-import { DetailSheet } from "./components/DetailSheet";
-import { NowPlayingPage } from "./components/NowPlayingPage";
 import { AgeGate } from "./components/AgeGate";
 import { Toasts } from "./components/Toasts";
 import {
@@ -64,6 +61,18 @@ import {
   writeSubtitleStore,
   type StoredSubtitles,
 } from "./lib/subtitles";
+
+const QueueDrawer = lazy(() =>
+  import("./components/QueueDrawer").then((module) => ({ default: module.QueueDrawer })),
+);
+const DetailSheet = lazy(() =>
+  import("./components/DetailSheet").then((module) => ({ default: module.DetailSheet })),
+);
+const NowPlayingPage = lazy(() =>
+  import("./components/NowPlayingPage").then((module) => ({
+    default: module.NowPlayingPage,
+  })),
+);
 
 const webSeed = liveSeedRaw as unknown as LibraryData;
 const bundledNativeSeed = liveSeedRaw as unknown as LibraryData;
@@ -163,8 +172,9 @@ function App() {
   const [view, setView] = useState<View>("home");
   const [page, setPage] = useState(1);
   const [activeSourceId, setActiveSourceId] = useState<LibrarySourceId>(initialSourceId);
-  const [asmrDailyToken, setAsmrDailyToken] = useState(() => readAsmrDailyToken());
-  const [asmrDailyUser, setAsmrDailyUser] = useState(() => readAsmrDailyUser());
+  const [asmrDailyToken, setAsmrDailyToken] = useState("");
+  const [asmrDailyUser, setAsmrDailyUser] = useState("");
+  const [asmrDailySessionReady, setAsmrDailySessionReady] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(readFavorites);
   const [currentId, setCurrentId] = useState(() => {
     const saved = savedPlayback.currentId;
@@ -227,6 +237,7 @@ function App() {
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const asmrDailySessionRevision = useRef(0);
   const advanceRef = useRef<(direction: number) => void>(() => {});
   const toastId = useRef(0);
   const tracksRef = useRef<Record<string, Track[]>>({});
@@ -247,6 +258,27 @@ function App() {
 
   tracksRef.current = workTracks;
   fallbackPreviewRef.current = fallbackPreview;
+
+  useEffect(() => {
+    let cancelled = false;
+    const revision = asmrDailySessionRevision.current;
+    void (async () => {
+      try {
+        const token = await readAsmrDailyToken();
+        const user = token ? await readAsmrDailyUser() : "";
+        if (cancelled || revision !== asmrDailySessionRevision.current) return;
+        setAsmrDailyToken(token);
+        setAsmrDailyUser(user);
+      } finally {
+        if (!cancelled && revision === asmrDailySessionRevision.current) {
+          setAsmrDailySessionReady(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const currentWork = useMemo(
     () => library.works.find((work) => work.id === currentId) ?? library.works[0],
@@ -891,6 +923,7 @@ function App() {
   }, [favorites]);
 
   useEffect(() => {
+    if (!asmrDailySessionReady) return;
     let cancelled = false;
     const load = async () => {
       if (isNativeApp() && (typeof navigator === "undefined" || navigator.onLine)) {
@@ -900,14 +933,14 @@ function App() {
         let data: LibraryData;
         if (isNativeApp()) {
           if (activeSourceId === "asmr-daily") {
-            const token = asmrDailyToken || readAsmrDailyToken();
+            const token = await readAsmrDailyToken();
             if (!token) throw new Error("ASMR Daily Token 未配置");
             data = await fetchAsmrDailyLibrary(token);
           } else {
             data = await fetchNativeLibrary(60_000);
           }
         } else if (activeSourceId === "asmr-daily") {
-          const token = asmrDailyToken || readAsmrDailyToken();
+          const token = await readAsmrDailyToken();
           if (!token) throw new Error("ASMR Daily Token 未配置");
           data = await fetchAsmrDailyLibrary(token);
         } else {
@@ -937,7 +970,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [applyLibrary]);
+  }, [applyLibrary, asmrDailySessionReady]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1305,7 +1338,7 @@ function App() {
     setSyncing(true);
     try {
       if (activeSourceId === "asmr-daily") {
-        const token = asmrDailyToken || readAsmrDailyToken();
+        const token = await readAsmrDailyToken();
         if (!token) {
           throw new Error("请先在头像 → ASMR Daily 登录或保存 Token");
         }
@@ -1378,7 +1411,7 @@ function App() {
       return;
     }
 
-    const token = readAsmrDailyToken();
+    const token = await readAsmrDailyToken();
     const cached = readAsmrDailyCachedLibrary();
     if (!token) {
       if (cached) {
@@ -1408,10 +1441,14 @@ function App() {
     }
   }
 
-  function handleAsmrDailySessionChanged() {
-    const token = readAsmrDailyToken();
+  async function handleAsmrDailySessionChanged() {
+    const revision = ++asmrDailySessionRevision.current;
+    const token = await readAsmrDailyToken();
+    const user = token ? await readAsmrDailyUser() : "";
+    if (revision !== asmrDailySessionRevision.current) return;
     setAsmrDailyToken(token);
-    setAsmrDailyUser(readAsmrDailyUser());
+    setAsmrDailyUser(user);
+    setAsmrDailySessionReady(true);
     if (!token) {
       if (activeSourceId === "asmr-daily") void switchSource("asmr-one");
       return;
@@ -1494,6 +1531,7 @@ function App() {
           activeSourceId={activeSourceId}
           asmrDailyToken={asmrDailyToken}
           asmrDailyUser={asmrDailyUser}
+          asmrDailySessionReady={asmrDailySessionReady}
           onSwitchSource={(id) => void switchSource(id)}
           onAsmrDailySessionChanged={handleAsmrDailySessionChanged}
         />
@@ -1793,82 +1831,94 @@ function App() {
         onExpand={() => setNowPlayingOpen(true)}
       />
 
-      <NowPlayingPage
-        open={nowPlayingOpen}
-        work={currentWork}
-        track={currentTrack}
-        trackIndex={safeTrackIndex}
-        trackCount={currentTracks.length}
-        isPlaying={isPlaying}
-        currentTime={currentTime}
-        duration={duration || (isPreview ? 20 : 0)}
-        volume={volume}
-        repeat={repeat}
-        favorite={favoritesSet.has(currentWork.id)}
-        cues={subtitleCues}
-        activeCue={activeSubtitleCue}
-        subtitleLabel={subtitleLabel}
-        subtitleIsDemo={subtitleIsDemo}
-        subtitleCanClear={Boolean(importedSubtitles)}
-        onClose={() => setNowPlayingOpen(false)}
-        onToggle={() => setIsPlaying((playing) => !playing)}
-        onNext={playNextTrack}
-        onPrev={playPrevTrack}
-        onSeek={seekToTime}
-        onVolume={(value) => {
-          setVolume(value);
-          if (value > 0) setLastVolume(value);
-        }}
-        onToggleRepeat={() => setRepeat((value) => !value)}
-        onFavorite={() => toggleFavorite(currentWork.id)}
-        onImportSubtitles={handleImportSubtitles}
-        onClearSubtitles={handleClearSubtitles}
-        onUseDemo={handleShowDemoSubtitles}
-        onHideDemo={handleHideDemoSubtitles}
-      />
+      {nowPlayingOpen && (
+        <Suspense fallback={null}>
+          <NowPlayingPage
+            open={nowPlayingOpen}
+            work={currentWork}
+            track={currentTrack}
+            trackIndex={safeTrackIndex}
+            trackCount={currentTracks.length}
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            duration={duration || (isPreview ? 20 : 0)}
+            volume={volume}
+            repeat={repeat}
+            favorite={favoritesSet.has(currentWork.id)}
+            cues={subtitleCues}
+            activeCue={activeSubtitleCue}
+            subtitleLabel={subtitleLabel}
+            subtitleIsDemo={subtitleIsDemo}
+            subtitleCanClear={Boolean(importedSubtitles)}
+            onClose={() => setNowPlayingOpen(false)}
+            onToggle={() => setIsPlaying((playing) => !playing)}
+            onNext={playNextTrack}
+            onPrev={playPrevTrack}
+            onSeek={seekToTime}
+            onVolume={(value) => {
+              setVolume(value);
+              if (value > 0) setLastVolume(value);
+            }}
+            onToggleRepeat={() => setRepeat((value) => !value)}
+            onFavorite={() => toggleFavorite(currentWork.id)}
+            onImportSubtitles={handleImportSubtitles}
+            onClearSubtitles={handleClearSubtitles}
+            onUseDemo={handleShowDemoSubtitles}
+            onHideDemo={handleHideDemoSubtitles}
+          />
+        </Suspense>
+      )}
 
-      <QueueDrawer
-        open={queueOpen}
-        current={currentWork}
-        tracks={currentTracks}
-        currentIndex={safeTrackIndex}
-        label={playScope?.label ?? "推荐音轨"}
-        isPlaying={isPlaying}
-        onClose={() => setQueueOpen(false)}
-        onPlayTrack={(index) => {
-          playTrackList(
-            currentWork,
-            currentTracks,
-            index,
-            playScope?.label ?? "推荐音轨",
-            playScope?.singleWork ?? false,
-          );
-        }}
-        onToggle={() => setIsPlaying((playing) => !playing)}
-      />
+      {queueOpen && (
+        <Suspense fallback={null}>
+          <QueueDrawer
+            open={queueOpen}
+            current={currentWork}
+            tracks={currentTracks}
+            currentIndex={safeTrackIndex}
+            label={playScope?.label ?? "推荐音轨"}
+            isPlaying={isPlaying}
+            onClose={() => setQueueOpen(false)}
+            onPlayTrack={(index) => {
+              playTrackList(
+                currentWork,
+                currentTracks,
+                index,
+                playScope?.label ?? "推荐音轨",
+                playScope?.singleWork ?? false,
+              );
+            }}
+            onToggle={() => setIsPlaying((playing) => !playing)}
+          />
+        </Suspense>
+      )}
 
-      <DetailSheet
-        work={detailWork}
-        favorite={detailWork ? favoritesSet.has(detailWork.id) : false}
-        isActive={detailWork?.id === currentId}
-        isPlaying={detailWork?.id === currentId && isPlaying}
-        tracks={detailWork ? workTracks[detailWork.id] : undefined}
-        tracksLoading={detailWork ? Boolean(trackLoading[detailWork.id]) : false}
-        trackError={detailWork ? trackErrors[detailWork.id] : undefined}
-        currentTrackId={detailWork?.id === currentId ? currentTrack?.id : undefined}
-        playlistLabel={detailWork?.id === currentId ? playScope?.label : undefined}
-        cacheIndex={cacheIndex}
-        trackCacheProgress={trackCacheProgress}
-        workCacheProgress={detailWork ? workCacheProgress[detailWork.id] : undefined}
-        onClose={() => setDetailId(null)}
-        onPlay={(work) => startWork(work, library.works)}
-        onFavorite={toggleFavorite}
-        onPlayTracks={playTrackList}
-        onCacheTrack={handleCacheTrack}
-        onCacheWork={handleCacheWork}
-        onRemoveCache={handleRemoveCache}
-        onRetryTracks={retryTracks}
-      />
+      {detailWork && (
+        <Suspense fallback={null}>
+          <DetailSheet
+            work={detailWork}
+            favorite={favoritesSet.has(detailWork.id)}
+            isActive={detailWork.id === currentId}
+            isPlaying={detailWork.id === currentId && isPlaying}
+            tracks={workTracks[detailWork.id]}
+            tracksLoading={Boolean(trackLoading[detailWork.id])}
+            trackError={trackErrors[detailWork.id]}
+            currentTrackId={detailWork.id === currentId ? currentTrack?.id : undefined}
+            playlistLabel={detailWork.id === currentId ? playScope?.label : undefined}
+            cacheIndex={cacheIndex}
+            trackCacheProgress={trackCacheProgress}
+            workCacheProgress={workCacheProgress[detailWork.id]}
+            onClose={() => setDetailId(null)}
+            onPlay={(work) => startWork(work, library.works)}
+            onFavorite={toggleFavorite}
+            onPlayTracks={playTrackList}
+            onCacheTrack={handleCacheTrack}
+            onCacheWork={handleCacheWork}
+            onRemoveCache={handleRemoveCache}
+            onRetryTracks={retryTracks}
+          />
+        </Suspense>
+      )}
 
       {hasAdult && !ageConfirmed && <AgeGate onConfirm={confirmAdult} />}
 

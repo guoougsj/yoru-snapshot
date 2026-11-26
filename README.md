@@ -76,7 +76,7 @@ APK 的播放与缓存策略：
 - **仅直连**：只走官方 API，适合开启 VPN/海外网络时
 - **公共中继**：AllOrigins + cors.lol
 - **自建中继**：Cloudflare Worker / Node；点击时会预填可用的内置地址，可直接保存或替换
-- **静态快照**：默认 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`（可替换）
+- **静态快照**：默认 `https://github.com/guoougsj/yoru-snapshot/releases/download/snapshot-latest/live-seed.json`（每 2 小时更新，可替换）；Release 尚不存在或不可用时自动回退到 Git 内置种子。
 - **内置快照**：APK 自带 500 件作品，完全离线，不发起网络请求
 - **作品分页**：500 件作品按每页 20 条展示，支持页码、上一页/下一页
 
@@ -84,7 +84,7 @@ APK 的播放与缓存策略：
 
 1. **内置只读中继**：`https://asmr.furina.in/api`（Cloudflare Pages 上的透明 API 反代）作为首选线路，同时并行对冲官方直连、AllOrigins `/raw` `/get`、`cors.lol`。首个有效响应获胜，失败两次的线路进入 10 分钟冷却，成功的线路下次优先。
 2. **自己的中继**：`relay/cloudflare-worker.js` 可部署到 Cloudflare Workers；`relay/node-relay.mjs` 可跑在 VPS 或局域网电脑。把地址填进 App → 头像 → **网络与数据源** → 测试连接 → 保存并同步。详见 `relay/README.md`。
-3. **静态快照**：`.github/workflows/sync-asmr.yml` 定时在 GitHub 海外 runner 抓取并提交 `data/live-seed.json`；App 可填 `raw.githubusercontent.com` 或 `jsDelivr` 的快照地址。快照模式会明确标注为快照，不冒充实时。
+3. **静态快照**：`.github/workflows/sync-asmr.yml` 每 2 小时在 GitHub 海外 runner 抓取并更新固定 `snapshot-latest` Release 的 `live-seed.json` asset；Git 中的 `data/live-seed.json` 只在 UTC 日期变化时提交，作为 Android 内置种子及 raw / jsDelivr 备用源。快照模式会明确标注为快照，不冒充实时。
 
 其他行为：
 
@@ -96,7 +96,8 @@ APK 的播放与缓存策略：
 - 自建中继与静态快照的制作、自检步骤见 `relay/README.md`；也可以直接运行：
   ```powershell
   npm.cmd run relay:check -- http://127.0.0.1:8788
-  npm.cmd run relay:check -- https://raw.githubusercontent.com/<用户名>/<仓库>/main/data/live-seed.json
+  npm.cmd run relay:check -- https://github.com/<用户名>/<仓库>/releases/download/snapshot-latest/live-seed.json
+  # Git 内置种子备用：https://raw.githubusercontent.com/<用户名>/<仓库>/main/data/live-seed.json
   ```
 - 内置快照完全离线；静态快照需要你自己的 JSON 地址；自建中继可以先点预设自动填入可用地址，再替换成自己的 Worker/Node 地址。
 - GitHub Actions 自动快照的完整步骤（建仓库、权限、运行、自检、填地址、常见问题）见 [`GITHUB_SNAPSHOT.md`](./GITHUB_SNAPSHOT.md)。
@@ -233,6 +234,7 @@ npx capacitor-assets generate --android --iconBackgroundColor '#0c0d0f' --iconBa
 | `npm run dev:web` | 仅启动 Vite（需要单独启动 API） |
 | `npm run dev:api` | 仅启动 Express API |
 | `npm run build` | TypeScript 检查并构建 `dist/` |
+| `npm test` | 运行快照、字幕安全、音轨归一化与缓存回归测试 |
 | `npm start` | 启动 Express 生产服务（端口 8787） |
 | `npm run sync` | 抓取最新作品与原站标签并更新缓存 |
 | `npm run relay` | 启动只读 Node 中继（端口 8788，供 App 自定义数据源使用） |
@@ -241,12 +243,20 @@ npx capacitor-assets generate --android --iconBackgroundColor '#0c0d0f' --iconBa
 | `npm run android:release` | 构建并同步 Web 资源，生成已签名的 release APK |
 | `npm run generate:audio` | 重新生成 12 段本地环境音 fallback |
 
+## CI 与快照发布
+
+- `.github/workflows/ci.yml`：push / PR 执行 `npm ci`、`npm test`、`npm run build`、actionlint，以及使用 Ubuntu 自带 Android SDK 的 Gradle `testDebugUnitTest` 和 `assembleDebug`。
+- `.github/workflows/sync-asmr.yml`：每 2 小时抓取并更新 `snapshot-latest` Release asset；Git seed 每天最多提交一次。
+- 抓取失败时保留旧快照；年龄超过 48 小时时创建或复用固定标题的 open issue 告警，恢复后自动关闭。
+- `.github/dependabot.yml`：每周更新 npm、GitHub Actions 与 Android Gradle 依赖。
+- 地址、权限和自检命令见 [`GITHUB_SNAPSHOT.md`](./GITHUB_SNAPSHOT.md)。
+
 ## API
 
-- `GET /api/health` — 服务健康检查。
+- `GET /api/health` — 服务健康检查与音轨缓存命中/容量指标。
 - `GET /api/works` — 返回作品、歌单、原站标签与数据源状态（优先实时缓存，否则快照）。
-- `GET /api/tracks/:id` — 按需获取官方音轨树，归一化为可直接播放的 mp3 列表；服务端会做 5 分钟内存缓存和 24 小时磁盘缓存。
-- `GET /api/subtitles?url=...` — 代理官方 CDN 上的 `.vtt/.srt/.lrc/.txt` 字幕文本（仅白名单域名，1 MB 上限）。
+- `GET /api/tracks/:id` — 按需获取官方音轨树，归一化为保留格式/版本的可播放音频列表；服务端会做 5 分钟 LRU 内存缓存、24 小时磁盘缓存，并保留 7 天内的旧缓存供故障回退。
+- `GET /api/subtitles?url=...` — 代理官方 CDN 上的 `.vtt/.srt/.lrc/.txt` 字幕文本（仅 HTTPS 白名单域名、逐跳校验重定向、1 MB 上限）。
 - `POST /api/sync` — 触发一次实时抓取（20 秒限流）。失败时返回 502，保留现有缓存/快照。
 
 ## 安装 APK
@@ -260,7 +270,7 @@ adb install -r release/YORU-夜音-1.4.2.apk
 ## 目录
 
 ```
-.github/         GitHub Actions 定时快照工作流
+.github/         CI、定时快照发布与 Dependabot 配置
 android/         Capacitor Android 原生工程
 assets/          APK 图标/启动图源文件
 data/            策展快照、Android 内置作品种子
@@ -268,7 +278,8 @@ public/audio/    本地环境音 fallback
 relay/           Cloudflare Worker / Node 只读中继
 release/         最终签名的 APK（本地生成，不纳入版本控制）
 scripts/         同步与音频生成脚本
-server/          Express API、asmr.one 抓取、音轨缓存
+server/          Express API
+server/lib/asmr/ 抓取、字幕安全、音轨归一化与有界缓存
 src/             React 界面、组件与样式
 ```
 
@@ -279,7 +290,7 @@ src/             React 界面、组件与样式
 - **服务端快路径实测**：重启服务后 `POST /api/sync` 21.18 秒返回 500 件；`GET /api/works` 返回 500 件、18 个标签；`GET /api/tracks/1683351` 命中缓存 11ms 返回 5 段音轨、5 个字幕 URL，传输标记为 `furina-relay`。
 - **一键预设实测**：面板列出 7 个预设；点击“内置中继 / 仅直连 / 公共中继 / 自动选择 / 内置快照 / 静态快照”会立即写入 `yoru.data-source-v2` 并标记当前项；点击“自建中继”会预填内置地址。重新打开面板后选择保持，控制台无错误。
 - **GitHub Actions 已跑通**：`guoougsj/yoru-snapshot` 的 `Sync asmr.one snapshot` 运行 `44508706141` 成功，并提交 `8d1a5e7`；raw 快照返回 `200`、500 件作品、抓取时间 `2026-11-19T10:46:22Z`。jsDelivr 分支地址有缓存，commit 固定地址 `@8d1a5e7` 已验证为 500 件。
-- **静态快照已预置**：点击“静态快照”会自动填入并保存 `https://raw.githubusercontent.com/guoougsj/yoru-snapshot/main/data/live-seed.json`，无需手动粘贴；Node 模拟中 341ms 返回 500 件作品，状态为 `curated-snapshot` / `snapshot`。
+- **静态快照已预置**：点击“静态快照”会自动填入并保存 `https://github.com/guoougsj/yoru-snapshot/releases/download/snapshot-latest/live-seed.json`；Node 模拟中 341ms 返回 500 件作品，状态为 `curated-snapshot` / `snapshot`。旧 raw 地址保留为 Git 内置种子备用说明。
 - **500 件作品实测**：`furina-relay` 分 25 页抓取 500 件作品耗时 14.9 秒，18 个原站标签；音轨接口约 1 秒返回 5 段、5 个字幕。Web 每页 20 张卡片，共 25 页；第 1 页显示 20 张，第 25 页显示 20 张且“下一页”禁用。
 - **内置种子已升级**：`data/live-seed.json` 500 件作品、500 个唯一 ID、18 个标签，文件 552,971 bytes；APK 也内置了构建时抓取的 500 件快照。
 - **预设路由实测**：Node 模拟中 `auto` 走 `furina-relay` 返回 500 件（14.9 秒）；`furina` 固定走 `furina-relay`；`bundled` 在 0ms 内返回 500 件内置快照，状态为 `curated-snapshot` / `bundled`；`custom` 走本地模拟 Worker 返回 24 件；`direct` 在无 VPN 网络下 6 秒内明确失败，不会偷偷回退到内置中继。

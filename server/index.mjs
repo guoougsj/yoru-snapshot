@@ -2,7 +2,9 @@ import express from "express";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchSubtitleText, fetchTracks, scrapeAsmrOne } from "./lib/scrape.mjs";
+import { scrapeAsmrOne, validateSnapshot } from "./lib/asmr/snapshot.mjs";
+import { fetchSubtitleText } from "./lib/asmr/subtitles.mjs";
+import { fetchTracks, getTrackCacheStats } from "./lib/asmr/tracks.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cacheDir = join(root, "server", "cache");
@@ -30,14 +32,21 @@ function loadLibrary() {
       const live = readJson(liveCachePath);
       if (live.works?.length) return { ...live, source: { ...live.source, cached: true } };
     } catch (error) {
-      console.warn("[yoru] live cache is unreadable, falling back:", error.message);
+      console.warn(
+        JSON.stringify({ level: "warn", event: "live_cache_unreadable", message: error.message }),
+      );
     }
   }
   return readJson(curatedPath);
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "yoru-api", time: new Date().toISOString() });
+  res.json({
+    ok: true,
+    service: "yoru-api",
+    time: new Date().toISOString(),
+    trackCache: getTrackCacheStats(),
+  });
 });
 
 app.get("/api/works", (_req, res) => {
@@ -55,7 +64,14 @@ app.get("/api/tracks/:id", async (req, res) => {
     const data = await fetchTracks(req.params.id);
     res.json(data);
   } catch (error) {
-    console.warn("[yoru] tracks failed:", error.message);
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        event: "tracks_failed",
+        workId: req.params.id,
+        message: error.message,
+      }),
+    );
     res.status(502).json({
       ok: false,
       message: "无法获取官方音轨，稍后会回退到本地试听。",
@@ -70,7 +86,9 @@ app.get("/api/subtitles", async (req, res) => {
     res.set("Cache-Control", "private, max-age=3600");
     res.type("text/plain; charset=utf-8").send(text);
   } catch (error) {
-    console.warn("[yoru] subtitle failed:", error.message);
+    console.warn(
+      JSON.stringify({ level: "warn", event: "subtitle_failed", message: error.message }),
+    );
     res.status(502).type("text/plain; charset=utf-8").send("字幕暂不可用");
   }
 });
@@ -86,11 +104,14 @@ app.post("/api/sync", async (_req, res) => {
   syncInFlight = scrapeAsmrOne();
   try {
     const library = await syncInFlight;
+    const workCount = validateSnapshot(library);
     writeFileSync(liveCachePath, JSON.stringify(library, null, 2), "utf8");
     lastSyncAt = Date.now();
-    res.json({ ok: true, source: library.source, count: library.works.length });
+    res.json({ ok: true, source: library.source, count: workCount });
   } catch (error) {
-    console.warn("[yoru] sync failed:", error.message);
+    console.warn(
+      JSON.stringify({ level: "warn", event: "snapshot_sync_failed", message: error.message }),
+    );
     res.status(502).json({
       ok: false,
       message: "asmr.one 当前无法访问，已保留现有作品数据。",

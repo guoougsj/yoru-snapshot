@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { fetchSafeSubtitleText } from "./mediaSecurity";
 import type { Track, Work } from "../types";
 
 export interface SubtitleCue {
@@ -152,31 +153,7 @@ export async function fetchSubtitleContent(url: string): Promise<string> {
   if (!url) throw new Error("字幕地址为空");
 
   if (Capacitor.isNativePlatform()) {
-    const controller = new AbortController();
-    let timer = 0;
-    const deadline = new Promise<never>((_, reject) => {
-      timer = window.setTimeout(() => {
-        controller.abort();
-        reject(new Error("字幕请求超时"));
-      }, 15_000);
-    });
-    try {
-      const response = await Promise.race([
-        fetch(url, {
-          signal: controller.signal,
-          cache: "no-store",
-          headers: {
-            Origin: "https://asmr.one",
-            Referer: "https://asmr.one/",
-          },
-        }),
-        deadline,
-      ]);
-      if (!response.ok) throw new Error(`字幕 HTTP ${response.status}`);
-      return await response.text();
-    } finally {
-      window.clearTimeout(timer);
-    }
+    return fetchSafeSubtitleText(url);
   }
 
   const response = await fetch(`/api/subtitles?url=${encodeURIComponent(url)}`, {

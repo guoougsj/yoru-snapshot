@@ -25,6 +25,7 @@ import {
   type DataSourcePreset,
 } from "../lib/netSettings";
 import { testCustomSource } from "../lib/nativeSource";
+import { isSecureStorageMemoryOnly } from "../lib/secureStorage";
 import { ASMR_DAILY } from "../lib/resources";
 import {
   clearAsmrDailySession,
@@ -54,8 +55,9 @@ interface TopBarProps {
   activeSourceId: LibrarySourceId;
   asmrDailyToken: string;
   asmrDailyUser: string;
+  asmrDailySessionReady: boolean;
   onSwitchSource: (id: LibrarySourceId) => void;
-  onAsmrDailySessionChanged: () => void;
+  onAsmrDailySessionChanged: () => void | Promise<void>;
 }
 
 function formatBytes(size: number): string {
@@ -82,6 +84,7 @@ export function TopBar({
   activeSourceId,
   asmrDailyToken,
   asmrDailyUser,
+  asmrDailySessionReady,
   onSwitchSource,
   onAsmrDailySessionChanged,
 }: TopBarProps) {
@@ -99,6 +102,7 @@ export function TopBar({
   const [dailyBusy, setDailyBusy] = useState(false);
   const [dailyMessage, setDailyMessage] = useState("");
   const actionsRef = useRef<HTMLDivElement>(null);
+  const dailyMemoryOnly = isSecureStorageMemoryOnly();
 
   useEffect(() => {
     if (!profileOpen && !notificationsOpen) return;
@@ -232,11 +236,11 @@ export function TopBar({
     setDailyMessage("正在登录 ASMR Daily…");
     try {
       const session = await loginAsmrDaily(username, dailyPassword);
-      saveAsmrDailySession(session.token, session.username);
+      await saveAsmrDailySession(session.token, session.username);
       setDailyPassword("");
       setDailyTokenDraft("");
       setDailyMessage(`已登录 · ${session.username}`);
-      onAsmrDailySessionChanged();
+      await onAsmrDailySessionChanged();
     } catch (error) {
       setDailyMessage(error instanceof Error ? error.message : "登录失败");
     } finally {
@@ -272,10 +276,12 @@ export function TopBar({
     setDailyMessage("正在验证 Token…");
     try {
       const total = await testAsmrDailyToken(token);
-      saveAsmrDailySession(token);
+      await saveAsmrDailySession(token);
       setDailyTokenDraft("");
-      setDailyMessage(`Token 已保存 · 站点共 ${total} 件作品`);
-      onAsmrDailySessionChanged();
+      setDailyMessage(
+        `${dailyMemoryOnly ? "Token 已载入当前会话" : "Token 已安全保存"} · 站点共 ${total} 件作品`,
+      );
+      await onAsmrDailySessionChanged();
     } catch (error) {
       setDailyMessage(error instanceof Error ? error.message : "Token 保存失败");
     } finally {
@@ -283,10 +289,18 @@ export function TopBar({
     }
   }
 
-  function handleDailyClear() {
-    clearAsmrDailySession();
-    setDailyMessage("已清除 ASMR Daily Token");
-    onAsmrDailySessionChanged();
+  async function handleDailyClear() {
+    setDailyBusy(true);
+    setDailyMessage("正在清除 ASMR Daily Token…");
+    try {
+      await clearAsmrDailySession();
+      await onAsmrDailySessionChanged();
+      setDailyMessage("已清除 ASMR Daily Token");
+    } catch (error) {
+      setDailyMessage(error instanceof Error ? error.message : "Token 清除失败");
+    } finally {
+      setDailyBusy(false);
+    }
   }
 
   return (
@@ -424,11 +438,19 @@ export function TopBar({
                   ASMR Daily 账号
                 </span>
                 <small>
-                  {asmrDailyUser || (asmrDailyToken ? "已保存 Token" : "未配置")}
+                  {!asmrDailySessionReady
+                    ? "正在恢复…"
+                    : asmrDailyUser ||
+                      (asmrDailyToken
+                        ? dailyMemoryOnly
+                          ? "当前会话已配置"
+                          : "已安全保存"
+                        : "未配置")}
                 </small>
               </summary>
               <p>
-                ASMR Daily 没有公开注册入口，账号由站点管理员创建；登录后只保存 Token，不保存密码。
+                ASMR Daily 没有公开注册入口，账号由站点管理员创建；不保存密码。Android
+                上 Token 通过 Keystore 加密保存；Web 上仅保存在当前页面内存中，刷新后需重新登录。
               </p>
               <input
                 value={dailyUsername}
@@ -450,10 +472,18 @@ export function TopBar({
                 autoComplete="current-password"
               />
               <div className="source-config-actions">
-                <button type="button" onClick={handleDailyLogin} disabled={dailyBusy}>
+                <button
+                  type="button"
+                  onClick={handleDailyLogin}
+                  disabled={dailyBusy || !asmrDailySessionReady}
+                >
                   {dailyBusy ? "处理中…" : "登录并切换"}
                 </button>
-                <button type="button" onClick={handleDailyTokenTest} disabled={dailyBusy}>
+                <button
+                  type="button"
+                  onClick={handleDailyTokenTest}
+                  disabled={dailyBusy || !asmrDailySessionReady}
+                >
                   测试 Token
                 </button>
               </div>
@@ -468,13 +498,17 @@ export function TopBar({
                 autoComplete="off"
               />
               <div className="source-config-actions">
-                <button type="button" onClick={handleDailyTokenSave} disabled={dailyBusy}>
-                  保存 Token
+                <button
+                  type="button"
+                  onClick={handleDailyTokenSave}
+                  disabled={dailyBusy || !asmrDailySessionReady}
+                >
+                  {dailyMemoryOnly ? "使用 Token" : "保存 Token"}
                 </button>
                 <button
                   type="button"
                   onClick={handleDailyClear}
-                  disabled={dailyBusy || !asmrDailyToken}
+                  disabled={dailyBusy || !asmrDailySessionReady}
                 >
                   清除
                 </button>

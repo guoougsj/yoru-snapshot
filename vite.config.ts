@@ -12,4 +12,18 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const path = id.replaceAll("\\", "/");
+          if (path.includes("/node_modules/react/") || path.includes("/node_modules/react-dom/")) {
+            return "react-vendor";
+          }
+          if (path.includes("/node_modules/lucide-react/")) return "ui-vendor";
+          if (path.endsWith("/data/live-seed.json")) return "library-seed";
+        },
+      },
+    },
+  },
 });

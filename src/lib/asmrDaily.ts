@@ -1,3 +1,9 @@
+import {
+  getSecureStorage,
+  isSecureStorageMemoryOnly,
+  removeSecureStorage,
+  setSecureStorage,
+} from "./secureStorage";
 import type {
   CoverArtSpec,
   LibraryData,
@@ -214,38 +220,81 @@ export function buildAsmrDailyLibrary(rawWorks: RawAsmrDailyWork[]): LibraryData
   };
 }
 
-export function readAsmrDailyToken(): string {
-  try {
-    return localStorage.getItem(ASMR_DAILY_TOKEN_KEY) || "";
-  } catch {
-    return "";
-  }
-}
-
-export function readAsmrDailyUser(): string {
-  try {
-    return localStorage.getItem(ASMR_DAILY_USER_KEY) || "";
-  } catch {
-    return "";
-  }
-}
-
-export function saveAsmrDailySession(token: string, username = "") {
-  const value = token.trim();
-  try {
-    localStorage.setItem(ASMR_DAILY_TOKEN_KEY, value);
-    if (username) localStorage.setItem(ASMR_DAILY_USER_KEY, username);
-  } catch {
-    /* The current session can still use the token in memory. */
-  }
-}
-
-export function clearAsmrDailySession() {
+function removeLegacyAsmrDailySession(): void {
   try {
     localStorage.removeItem(ASMR_DAILY_TOKEN_KEY);
     localStorage.removeItem(ASMR_DAILY_USER_KEY);
   } catch {
-    /* Ignore unavailable storage. */
+    /* Legacy plaintext must not be kept when storage is unavailable. */
+  }
+}
+
+function readLegacyAsmrDailySession(): { token: string; user: string } {
+  try {
+    return {
+      token: localStorage.getItem(ASMR_DAILY_TOKEN_KEY) || "",
+      user: localStorage.getItem(ASMR_DAILY_USER_KEY) || "",
+    };
+  } catch {
+    return { token: "", user: "" };
+  }
+}
+
+export async function readAsmrDailyToken(): Promise<string> {
+  if (isSecureStorageMemoryOnly()) {
+    removeLegacyAsmrDailySession();
+    try {
+      return await getSecureStorage(ASMR_DAILY_TOKEN_KEY);
+    } catch {
+      return "";
+    }
+  }
+
+  const legacy = readLegacyAsmrDailySession();
+  try {
+    const stored = await getSecureStorage(ASMR_DAILY_TOKEN_KEY);
+    if (stored) return stored;
+    if (!legacy.token) return "";
+    await setSecureStorage(ASMR_DAILY_TOKEN_KEY, legacy.token);
+    if (legacy.user) await setSecureStorage(ASMR_DAILY_USER_KEY, legacy.user);
+    return legacy.token;
+  } catch {
+    return "";
+  } finally {
+    removeLegacyAsmrDailySession();
+  }
+}
+
+export async function readAsmrDailyUser(): Promise<string> {
+  try {
+    return await getSecureStorage(ASMR_DAILY_USER_KEY);
+  } catch {
+    return "";
+  }
+}
+
+export async function saveAsmrDailySession(token: string, username = ""): Promise<void> {
+  const value = token.trim();
+  try {
+    await setSecureStorage(ASMR_DAILY_TOKEN_KEY, value);
+    if (username) {
+      await setSecureStorage(ASMR_DAILY_USER_KEY, username);
+    } else {
+      await removeSecureStorage(ASMR_DAILY_USER_KEY);
+    }
+  } finally {
+    removeLegacyAsmrDailySession();
+  }
+}
+
+export async function clearAsmrDailySession(): Promise<void> {
+  try {
+    await Promise.all([
+      removeSecureStorage(ASMR_DAILY_TOKEN_KEY),
+      removeSecureStorage(ASMR_DAILY_USER_KEY),
+    ]);
+  } finally {
+    removeLegacyAsmrDailySession();
   }
 }
 

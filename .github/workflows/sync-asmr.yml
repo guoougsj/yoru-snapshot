@@ -12,11 +12,17 @@ on:
     paths:
       - ".github/workflows/sync-asmr.yml"
       - "scripts/sync-asmr.mjs"
-      - "server/lib/scrape.mjs"
+      - "scripts/snapshot-status.mjs"
+      - "scripts/snapshot-status.test.mjs"
+      - "server/lib/asmr/library.mjs"
+      - "server/lib/asmr/transport.mjs"
+      - "server/lib/asmr/snapshot.mjs"
+      - "server/lib/asmr/*.test.mjs"
   workflow_dispatch:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: yoru-asmr-snapshot
@@ -25,49 +31,154 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
 
-      - name: Fetch asmr.one metadata
-        run: |
-          for attempt in 1 2 3; do
-            if node scripts/sync-asmr.mjs; then
-              exit 0
-            fi
-            echo "::warning::Sync attempt ${attempt} failed; retrying in 20s"
-            sleep 20
-          done
-          exit 1
+      - name: Test snapshot pipeline
+        run: node --test server/lib/asmr/*.test.mjs
 
-      - name: Validate snapshot
+      - name: Fetch and validate snapshot
+        id: snapshot
         run: |
-          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('server/cache/live-works.json','utf8'));const works=Array.isArray(j.works)?j.works:[];if(works.length<300)throw new Error('snapshot has only '+works.length+' works');console.log('validated',works.length,'works',(j.tags||[]).length,'tags')"
+          validate_snapshot() {
+            node --input-type=module -e "import { readFileSync } from 'node:fs'; import { validateSnapshot } from './server/lib/asmr/snapshot.mjs'; const snapshot=JSON.parse(readFileSync(process.argv[1],'utf8')); console.log('validated',validateSnapshot(snapshot),'works');" "$1"
+          }
+          if node scripts/sync-asmr.mjs && validate_snapshot server/cache/live-works.json; then
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Fresh snapshot unavailable; keeping the last committed snapshot."
+            validate_snapshot data/live-seed.json
+            echo "### Snapshot not refreshed" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Upstream sync failed; data/live-seed.json was left unchanged." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
-      - name: Publish snapshot
+      - name: Publish snapshot Release asset
+        id: release
+        if: steps.snapshot.outputs.updated == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp server/cache/live-works.json "$RUNNER_TEMP/live-seed.json"
+          if ! gh release view snapshot-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create snapshot-latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --target main \
+              --title "Latest static snapshot" \
+              --notes "Updated every two hours by the Sync asmr.one snapshot workflow." \
+              --latest
+          fi
+          gh release upload snapshot-latest "$RUNNER_TEMP/live-seed.json" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Commit daily Git seed
+        id: git_seed
+        if: steps.snapshot.outputs.updated == 'true'
         run: |
           cp server/cache/live-works.json data/live-seed.json
+          git show HEAD:data/live-seed.json > "$RUNNER_TEMP/committed-live-seed.json"
+          snapshot_date() {
+            node --input-type=module -e "import { readFileSync } from 'node:fs'; const snapshot=JSON.parse(readFileSync(process.argv[1],'utf8')); process.stdout.write(new Date(snapshot.source.fetchedAt).toISOString().slice(0,10));" "$1"
+          }
+          previous_date="$(snapshot_date "$RUNNER_TEMP/committed-live-seed.json")"
+          latest_date="$(snapshot_date data/live-seed.json)"
+          if [[ "$latest_date" == "$previous_date" ]]; then
+            echo "Snapshot date unchanged ($latest_date); the Release asset was updated without a Git commit."
+            exit 0
+          fi
           git config user.name "yoru-sync[bot]"
           git config user.email "yoru-sync@users.noreply.github.com"
           git add data/live-seed.json
-          if git diff --cached --quiet; then
-            echo "No snapshot changes."
-          else
-            git commit -m "chore: sync asmr.one snapshot $(date -u +'%Y-%m-%dT%H:%MZ')"
-            git push
-          fi
+          git commit -m "chore: sync asmr.one snapshot $(date -u +'%Y-%m-%dT%H:%MZ')"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push
+
+      - name: Check snapshot freshness and alert
+        if: always() && steps.snapshot.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALERT_TITLE: "Snapshot alert: live-seed.json is older than 48 hours"
+        run: |
+          find_alert_issue() {
+            gh issue list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --search "in:title \"$ALERT_TITLE\"" \
+              --limit 100 \
+              --json number,title \
+              --jq 'map(select(.title == env.ALERT_TITLE)) | .[0].number // empty'
+          }
+          status_code=0
+          node scripts/snapshot-status.mjs data/live-seed.json > "$RUNNER_TEMP/snapshot-status.json" || status_code=$?
+          cat "$RUNNER_TEMP/snapshot-status.json"
+          case "$status_code" in
+            0)
+              if [[ "${{ steps.snapshot.outputs.updated }}" == "true" && "${{ steps.release.outcome }}" != "success" ]]; then
+                echo "Snapshot is fresh locally, but Release publishing failed; keeping any existing alert open."
+                exit 0
+              fi
+              existing_issue="$(find_alert_issue)"
+              if [[ -n "$existing_issue" ]]; then
+                gh issue close "$existing_issue" --repo "$GITHUB_REPOSITORY"
+                echo "Closed recovered snapshot alert issue #$existing_issue."
+              else
+                echo "Snapshot is no more than 48 hours old; no alert is needed."
+              fi
+              ;;
+            1)
+              existing_issue="$(find_alert_issue)"
+              if [[ -n "$existing_issue" ]]; then
+                echo "Reusing open snapshot alert issue #$existing_issue."
+              else
+                body="$(jq -r '"快照已超过 48 小时未更新（当前 " + (.ageHours | floor | tostring) + " 小时）。\n\n抓取时间：" + .fetchedAt + "\n工作流：" + env.GITHUB_SERVER_URL + "/" + env.GITHUB_REPOSITORY + "/actions/runs/" + env.GITHUB_RUN_ID' "$RUNNER_TEMP/snapshot-status.json")"
+                gh issue create \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --title "$ALERT_TITLE" \
+                  --body "$body"
+              fi
+              ;;
+            *)
+              echo "::error::Could not determine snapshot age (exit $status_code)."
+              exit "$status_code"
+              ;;
+          esac
 
       - name: Write snapshot URLs to summary
+        if: always()
         run: |
+          if [[ "${{ steps.snapshot.outputs.updated }}" == "true" ]]; then
+            if [[ "${{ steps.release.outcome }}" == "success" ]]; then
+              echo "Snapshot refreshed and uploaded to the snapshot-latest Release."
+            else
+              echo "Snapshot refreshed, but the Release upload did not complete."
+            fi
+            if [[ "${{ steps.git_seed.outcome }}" == "success" ]]; then
+              echo "Daily Git seed is current."
+            else
+              echo "Daily Git seed was not committed; the previous committed seed remains available."
+            fi
+          else
+            echo "Snapshot was not refreshed; the previous committed data remains available."
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### YORU static snapshot" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "在 App 内选择“静态快照”，填入下面任一地址：" >> "$GITHUB_STEP_SUMMARY"
+          echo "Release asset (updated every two hours):" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/guoougsj/yoru-snapshot/releases/download/snapshot-latest/live-seed.json" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Git seed fallback (committed only when its UTC date changes):" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/data/live-seed.json" >> "$GITHUB_STEP_SUMMARY"

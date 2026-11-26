@@ -1,4 +1,5 @@
 import liveSeedRaw from "../../data/live-seed.json";
+import { safeMediaUrl } from "./mediaSecurity";
 import type {
   CoverArtSpec,
   LibraryData,
@@ -10,7 +11,9 @@ import type {
 } from "../types";
 import {
   buildRelayTarget,
+  DEFAULT_SNAPSHOT_URL,
   FURINA_RELAY,
+  GIT_SEED_SNAPSHOT_URL,
   isRouteCoolingDown,
   noteRouteResult,
   parseCustomSource,
@@ -603,15 +606,6 @@ interface RawTrackNode {
   children?: RawTrackNode[];
 }
 
-function absoluteMediaUrl(value?: string | null): string | undefined {
-  if (!value) return undefined;
-  try {
-    return new URL(value, "https://api.asmr-200.com").href;
-  } catch {
-    return undefined;
-  }
-}
-
 /** Flatten the recursive /api/tracks tree into playable audio files. */
 interface TextAsset {
   url: string;
@@ -662,7 +656,7 @@ export function normaliseTrackTree(
     const format = formatMatch ? formatMatch[1].toLowerCase() : "";
     if (!SUBTITLE_FORMATS.has(format)) return;
     const url =
-      absoluteMediaUrl(node.mediaDownloadUrl) || absoluteMediaUrl(node.mediaStreamUrl);
+      safeMediaUrl(node.mediaDownloadUrl) || safeMediaUrl(node.mediaStreamUrl);
     if (!url) return;
     const withoutExtension = title.slice(0, -(`.${format}`.length));
     const logicalBase = withoutExtension.replace(MEDIA_EXTENSIONS, "");
@@ -711,8 +705,8 @@ export function normaliseTrackTree(
 
   // Second pass: text assets can appear after their audio node in the tree.
   for (const { node, folders } of audioNodes) {
-    const streamUrl = absoluteMediaUrl(node.mediaStreamUrl);
-    const downloadUrl = absoluteMediaUrl(node.mediaDownloadUrl);
+    const streamUrl = safeMediaUrl(node.mediaStreamUrl);
+    const downloadUrl = safeMediaUrl(node.mediaDownloadUrl);
     if (streamUrl || downloadUrl) {
       sequence += 1;
       const rawTitle = String(node.title || `Track ${sequence}`);
@@ -771,11 +765,17 @@ function readTrackMetaCache(): Record<string, TrackMetaCache> {
   }
 }
 
-function readCachedTrackMeta(id: string): Track[] | null {
+function readCachedTrackMeta(id: string, allowStale = false): Track[] | null {
   const cached = readTrackMetaCache()[id];
   if (!cached || !Array.isArray(cached.tracks) || !cached.tracks.length) return null;
-  if (Date.now() - Number(cached.cachedAt || 0) > TRACK_META_TTL) return null;
-  return cached.tracks;
+  if (!allowStale && Date.now() - Number(cached.cachedAt || 0) > TRACK_META_TTL) return null;
+  const tracks = cached.tracks.filter(
+    (track) =>
+      safeMediaUrl(track.streamUrl) &&
+      (!track.downloadUrl || safeMediaUrl(track.downloadUrl)) &&
+      (!track.subtitleUrl || safeMediaUrl(track.subtitleUrl)),
+  );
+  return tracks.length ? tracks : null;
 }
 
 function writeCachedTrackMeta(id: string, tracks: Track[]) {
@@ -791,9 +791,13 @@ function writeCachedTrackMeta(id: string, tracks: Track[]) {
 const trackInFlight = new Map<string, Promise<Track[]>>();
 
 export async function fetchNativeTracks(workId: string): Promise<Track[]> {
-  const digits = String(workId).replace(/^RJ/i, "").replace(/\D/g, "");
-  if (!digits) throw new Error("无效的作品编号");
-  const id = String(Number(digits));
+  const rawId = String(workId || "").trim();
+  if (!/^RJ?\d+$/i.test(rawId)) throw new Error("无效的作品编号");
+  const numericId = Number(rawId.replace(/^RJ/i, ""));
+  if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+    throw new Error("无效的作品编号");
+  }
+  const id = String(numericId);
 
   const memory = trackMemo.get(id);
   if (memory && memory.expires > Date.now()) return memory.tracks;
@@ -832,8 +836,8 @@ export async function fetchNativeTracks(workId: string): Promise<Track[]> {
   try {
     return await promise;
   } catch (error) {
-    const stale = readTrackMetaCache()[id];
-    if (stale?.tracks?.length) return stale.tracks;
+    const stale = readCachedTrackMeta(id, true);
+    if (stale) return stale;
     throw error;
   } finally {
     trackInFlight.delete(id);
@@ -863,12 +867,18 @@ export async function fetchNativeLibrary(
   const promise = (async () => {
     const custom = presetSnapshot(config);
     if (custom) {
-      try {
-        const text = await fetchText(custom.base, 20_000);
-        const snapshot = snapshotToLibrary(JSON.parse(text));
-        if (snapshot) return snapshot;
-      } catch {
-        /* Fall back to the live relay path below. */
+      const urls =
+        custom.base === DEFAULT_SNAPSHOT_URL
+          ? [custom.base, GIT_SEED_SNAPSHOT_URL]
+          : [custom.base];
+      for (const url of urls) {
+        try {
+          const text = await fetchText(url, 20_000);
+          const snapshot = snapshotToLibrary(JSON.parse(text));
+          if (snapshot) return snapshot;
+        } catch {
+          /* Try the next snapshot URL, then fall back to live relays. */
+        }
       }
     }
 
