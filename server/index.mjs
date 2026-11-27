@@ -1,7 +1,8 @@
 import express from "express";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeFileAtomic } from "./lib/asmr/atomicWrite.mjs";
 import { scrapeAsmrOne, validateSnapshot } from "./lib/asmr/snapshot.mjs";
 import { fetchSubtitleText } from "./lib/asmr/subtitles.mjs";
 import { fetchTracks, getTrackCacheStats } from "./lib/asmr/tracks.mjs";
@@ -105,7 +106,7 @@ app.post("/api/sync", async (_req, res) => {
   try {
     const library = await syncInFlight;
     const workCount = validateSnapshot(library);
-    writeFileSync(liveCachePath, JSON.stringify(library, null, 2), "utf8");
+    writeFileAtomic(liveCachePath, JSON.stringify(library, null, 2));
     lastSyncAt = Date.now();
     res.json({ ok: true, source: library.source, count: workCount });
   } catch (error) {

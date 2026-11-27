@@ -238,6 +238,7 @@ function App() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const asmrDailySessionRevision = useRef(0);
+  const sourceSwitchRevision = useRef(0);
   const advanceRef = useRef<(direction: number) => void>(() => {});
   const toastId = useRef(0);
   const tracksRef = useRef<Record<string, Track[]>>({});
@@ -717,10 +718,12 @@ function App() {
     }
     officialSubtitleAttempts.current.add(key);
     let cancelled = false;
+    let completed = false;
 
     void fetchSubtitleContent(url)
       .then((content) => {
         if (cancelled) return;
+        completed = true;
         if (!parseSubtitleText(content, subtitleDuration).length) {
           throw new Error("官方字幕为空");
         }
@@ -735,12 +738,14 @@ function App() {
       })
       .catch(() => {
         if (!cancelled) {
+          completed = true;
           pushToast("官方字幕加载失败，可导入字幕或查看演示", "neutral");
         }
       });
 
     return () => {
       cancelled = true;
+      if (!completed) officialSubtitleAttempts.current.delete(key);
     };
   }, [
     currentTrack?.subtitleUrl,
@@ -1405,6 +1410,7 @@ function App() {
 
   async function switchSource(id: LibrarySourceId) {
     if (id === activeSourceId) return;
+    const revision = ++sourceSwitchRevision.current;
     if (id === "asmr-one") {
       applyLibrary(isNativeApp() ? readNativeSeed() : webSeed);
       pushToast("已切换到 asmr.one 作品源", "success");
@@ -1412,6 +1418,7 @@ function App() {
     }
 
     const token = await readAsmrDailyToken();
+    if (revision !== sourceSwitchRevision.current) return;
     const cached = readAsmrDailyCachedLibrary();
     if (!token) {
       if (cached) {
@@ -1427,9 +1434,11 @@ function App() {
     setSyncing(true);
     try {
       const data = await fetchAsmrDailyLibrary(token);
+      if (revision !== sourceSwitchRevision.current) return;
       applyLibrary(data);
       pushToast(`已切换到 ASMR Daily · ${data.works.length} 个作品`, "success");
     } catch (error) {
+      if (revision !== sourceSwitchRevision.current) return;
       const message = error instanceof Error ? error.message : "ASMR Daily 加载失败";
       if (cached) {
         pushToast(`${message}；继续使用 ASMR Daily 缓存`, "neutral");
@@ -1437,7 +1446,7 @@ function App() {
         pushToast(`${message}；请检查 Token`, "error");
       }
     } finally {
-      setSyncing(false);
+      if (revision === sourceSwitchRevision.current) setSyncing(false);
     }
   }
 

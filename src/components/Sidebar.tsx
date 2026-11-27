@@ -186,7 +186,7 @@ export function Sidebar({
           <SlidersHorizontal size={12} />
           HIGH · 48kHz
         </span>
-        <span className="ver">v1.4.2</span>
+        <span className="ver">v1.4.3</span>
       </div>
     </aside>
   );

@@ -30,10 +30,58 @@ function fallbackUrl(target) {
   return `${FALLBACK_BASE}${target.pathname.replace(/^\/api/, "")}${target.search}`;
 }
 
+const MAX_REDIRECTS = 3;
+
+function isAllowed(target) {
+  if (
+    target.protocol !== "https:" ||
+    target.username ||
+    target.password ||
+    target.port
+  ) {
+    return false;
+  }
+  const host = target.hostname.toLowerCase();
+  if (API_HOSTS.has(host)) {
+    return target.pathname.startsWith("/api/");
+  }
+  // Subtitle/text assets are small and useful when the media CDN is also
+  // restricted. Do not allow audio files through the Worker.
+  if (host.endsWith(".kiko-play-niptan.one")) {
+    return /\.(vtt|srt|lrc|txt)$/i.test(target.pathname);
+  }
+  return false;
+}
+
+async function fetchWithValidatedRedirects(initialUrl, options, timeoutMs) {
+  let current = new URL(initialUrl);
+  for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
+    const res = await fetch(current.href, {
+      ...options,
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if ([301, 302, 303, 307, 308].includes(res.status)) {
+      const location = res.headers.get("location");
+      await res.body?.cancel().catch(() => {});
+      if (!location || redirects === MAX_REDIRECTS) {
+        throw new Error("invalid_or_excessive_redirect");
+      }
+      const next = new URL(location, current);
+      if (!isAllowed(next) && next.origin !== new URL(FALLBACK_BASE).origin) {
+        throw new Error("forbidden_redirect_target");
+      }
+      current = next;
+      continue;
+    }
+    return res;
+  }
+  throw new Error("too_many_redirects");
+}
+
 async function fetchUpstream(target, method) {
   const options = {
     method,
-    redirect: "follow",
     headers: {
       Accept: "application/json, text/plain, */*",
       Origin: "https://asmr.one",
@@ -47,10 +95,7 @@ async function fetchUpstream(target, method) {
 
   const directTimeout = API_HOSTS.has(target.hostname.toLowerCase()) ? 4_000 : 20_000;
   try {
-    const direct = await fetch(target.href, {
-      ...options,
-      signal: AbortSignal.timeout(directTimeout),
-    });
+    const direct = await fetchWithValidatedRedirects(target.href, options, directTimeout);
     if (direct.ok) return { response: direct, route: "direct" };
   } catch {
     /* Try the built-in read-only fallback below. */
@@ -59,10 +104,7 @@ async function fetchUpstream(target, method) {
   const fallback = fallbackUrl(target);
   if (!fallback) throw new Error("upstream_unreachable");
   return {
-    response: await fetch(fallback, {
-      ...options,
-      signal: AbortSignal.timeout(20_000),
-    }),
+    response: await fetchWithValidatedRedirects(fallback, options, 20_000),
     route: "fallback",
   };
 }
@@ -72,19 +114,6 @@ function json(body, status = 200) {
     status,
     headers: { ...CORS, "Content-Type": "application/json; charset=utf-8" },
   });
-}
-
-function isAllowed(target) {
-  const host = target.hostname.toLowerCase();
-  if (API_HOSTS.has(host)) {
-    return target.pathname.startsWith("/api/");
-  }
-  // Subtitle/text assets are small and useful when the media CDN is also
-  // restricted. Do not allow audio files through the Worker.
-  if (host.endsWith(".kiko-play-niptan.one")) {
-    return /\.(vtt|srt|lrc|txt)$/i.test(target.pathname);
-  }
-  return false;
 }
 
 export default {
@@ -112,7 +141,7 @@ export default {
     } catch {
       return json({ error: "invalid_url" }, 400);
     }
-    if (!/^https?:$/.test(target.protocol) || !isAllowed(target)) {
+    if (!isAllowed(target)) {
       return json({ error: "forbidden_target" }, 403);
     }
 

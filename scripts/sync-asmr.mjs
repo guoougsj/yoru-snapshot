@@ -3,9 +3,10 @@
  * Pull the latest asmr.one/works page (no age filter, original tags) into
  * server/cache/live-works.json. Full track URLs are fetched lazily per work.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeFileAtomic } from "../server/lib/asmr/atomicWrite.mjs";
 import { scrapeAsmrOne, validateSnapshot } from "../server/lib/asmr/snapshot.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -16,10 +17,9 @@ console.log("→ 正在连接 asmr.one …");
 try {
   const library = await scrapeAsmrOne();
   const workCount = validateSnapshot(library);
-  writeFileSync(
+  writeFileAtomic(
     join(cacheDir, "live-works.json"),
     JSON.stringify(library, null, 2),
-    "utf8",
   );
   console.log(
     `✓ 已缓存 ${workCount} 个作品、${library.tags.length} 个原站标签（${library.source.api}）`,

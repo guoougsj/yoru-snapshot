@@ -1,9 +1,7 @@
-const API_HOSTS = new Set([
-  "api.asmr-200.com",
-  "api.asmr.one",
-  "api.asmr-100.com",
-  "api.asmr-300.com",
-]);
+import { isAllowedMediaHost, safeMediaUrl } from "../../shared/asmrCore.mjs";
+
+export { safeMediaUrl };
+
 const MAX_SUBTITLE_BYTES = 1_000_000;
 const MAX_SUBTITLE_REDIRECTS = 3;
 const ALLOWED_SUBTITLE_TYPES = new Set([
@@ -14,33 +12,13 @@ const ALLOWED_SUBTITLE_TYPES = new Set([
   "application/lrc",
 ]);
 
-function isAllowedHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  return (
-    host === "asmr.one" ||
-    host.endsWith(".asmr.one") ||
-    host === "kiko-play-niptan.one" ||
-    host.endsWith(".kiko-play-niptan.one") ||
-    API_HOSTS.has(host)
-  );
-}
-
 function parseHttpsUrl(value: string, base?: string | URL): URL {
   const url = new URL(value, base);
   if (url.protocol !== "https:" || url.username || url.password || url.port) {
     throw new Error("媒体地址必须使用 HTTPS，且不能包含凭据或自定义端口");
   }
-  if (!isAllowedHost(url.hostname)) throw new Error("不允许的媒体域名");
+  if (!isAllowedMediaHost(url.hostname)) throw new Error("不允许的媒体域名");
   return url;
-}
-
-export function safeMediaUrl(value?: string | null): string | undefined {
-  if (!value) return undefined;
-  try {
-    return parseHttpsUrl(value, "https://api.asmr-200.com").href;
-  } catch {
-    return undefined;
-  }
 }
 
 function parseSubtitleUrl(value: string, base?: string | URL): URL {
@@ -111,7 +89,7 @@ export async function fetchSafeSubtitleText(rawUrl: string): Promise<string> {
 
   try {
     for (let redirects = 0; redirects <= MAX_SUBTITLE_REDIRECTS; redirects++) {
-      const response = await Promise.race([
+      let response = await Promise.race([
         fetch(url.href, {
           signal: controller.signal,
           cache: "no-store",
@@ -123,6 +101,23 @@ export async function fetchSafeSubtitleText(rawUrl: string): Promise<string> {
         }),
         deadline,
       ]);
+      // Browser/WebView fetch hides Location on cross-origin manual redirects
+      // (type === "opaqueredirect"). Retry once with redirect: "follow" and
+      // validate the resolved response.url against the allowlist.
+      if (response.type === "opaqueredirect") {
+        response = await Promise.race([
+          fetch(url.href, {
+            signal: controller.signal,
+            cache: "no-store",
+            redirect: "follow",
+            headers: {
+              Origin: "https://asmr.one",
+              Referer: "https://asmr.one/",
+            },
+          }),
+          deadline,
+        ]);
+      }
       if (response.url) parseSubtitleUrl(response.url);
 
       if ([301, 302, 303, 307, 308].includes(response.status)) {

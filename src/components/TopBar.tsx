@@ -379,7 +379,7 @@ export function TopBar({
               <span className="profile-avatar">夜</span>
               <div className="profile-identity">
                 <strong>夜行听众</strong>
-                <small>YORU · 夜音 v1.4.2</small>
+                <small>YORU · 夜音 v1.4.3</small>
               </div>
               <button
                 className="popover-close"

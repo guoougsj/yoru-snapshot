@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeFileAtomic } from "./atomicWrite.mjs";
 
 const DEFAULT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "cache", "tracks");
 const MAX_MEMORY_ENTRIES = 128;
@@ -77,9 +78,10 @@ export function createTrackCache({ dir = DEFAULT_DIR, now = Date.now } = {}) {
         .filter(Boolean);
 
       const expired = files.filter((file) => now() - file.mtimeMs >= DISK_RETENTION);
+      const expiredSet = new Set(expired);
       for (const file of expired) unlinkSync(file.path);
       const remaining = files
-        .filter((file) => !expired.includes(file))
+        .filter((file) => !expiredSet.has(file))
         .sort((a, b) => a.mtimeMs - b.mtimeMs);
       const overflow = Math.max(0, remaining.length - MAX_DISK_FILES);
       for (const file of remaining.slice(0, overflow)) unlinkSync(file.path);
@@ -94,10 +96,9 @@ export function createTrackCache({ dir = DEFAULT_DIR, now = Date.now } = {}) {
   function writeDisk(id, data) {
     try {
       mkdirSync(dir, { recursive: true });
-      writeFileSync(
+      writeFileAtomic(
         join(dir, `${id}.json`),
         JSON.stringify({ ...data, version: 3, cachedAt: now() }, null, 2),
-        "utf8",
       );
       metrics.writes += 1;
       maintainDisk();
